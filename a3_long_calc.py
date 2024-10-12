@@ -266,16 +266,23 @@ def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
     total_delta_v = np.zeros((len(orbits), len(orbits)))
 
     for i in range(len(orbits)):
-
+        # Finds delta_v to exit inital parking orbit
         delta_park = mission_total_v(park_orbit, orbits[i], points_sim, m0,
                                     earth_rad, omega_e, mu)
         park_delta_v[i] = delta_park
+
         for j in range(len(orbits)):
+            # We do not want to calculate the delta-v of the same orbit and we also don't
+            # want to repeat calculations
             if i != j and i < j and i != 0:
+                # Keeping track of index
                 print(i,j)
+                # Calculate delta-v between two unique orbits
                 delta_v2 = mission_total_v(orbits[i], orbits[j], points_sim, m0,
                                             earth_rad, omega_e, mu, print_stuff = 0)
                 transfer_delta_v[j] = delta_v2
+
+            # Initial case, acts a bit different due to parking orbit
             elif i != j and i ==0:
                 print(i,j)
                 delta_v2 = mission_total_v(orbits[i], orbits[j], points_sim, m0,
@@ -284,11 +291,18 @@ def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
             else:
                 continue
 
+    # Now that all the transfer values are extracted, the following calculates
+    # every possible 'total delta-v' into a 2 dimensional array
     for i in range(len(orbits)):
         for j in range(len(orbits)):
             if i != j-1 and i != j:
                 total_delta_v[i][j]= park_delta_v[i] + transfer_delta_v[j-1] + transfer_delta_v[j]
+                # if i == 2 and j == 1:
+                #     print(transfer_delta_v[j])
+                #     print(transfer_delta_v[j-1])
+                #     print(park_delta_v[i])
             else:
+                # Placeholder, can be aslo replaced with nan
                 total_delta_v[i][j] = 0
 
     # Create a mask for non-zero values
@@ -301,11 +315,11 @@ def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
     min_index = np.argwhere(total_delta_v == min_non_zero_value)
     min_value = total_delta_v[min_index[0][0], min_index[0][1]]
 
-    # print(total_delta_v)
-    # print(min_index)
+    print(total_delta_v)
+    print(min_index)
 
     print(f"Transferring to         {orbits[min_index[0][0]][0]}")
-    print(f"Then transferring to    {orbits[min_index[0][1]][0]}")
     print(f"Then transferring to    {orbits[min_index[0][1] - 1][0]}")
+    print(f"Then transferring to    {orbits[min_index[0][1]][0]}")
 
     return min_value
