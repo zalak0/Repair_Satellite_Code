@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import numpy as np
 
 class Orbit:
