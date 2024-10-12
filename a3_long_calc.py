@@ -210,26 +210,24 @@ def fix_orbit(orbit: tuple, r_start: np.ndarray, r_finish: np.ndarray,
 
 
 def delta_vs(current_orbit, target, mu):
-    (chase_name, r_chase_perigee, r_chase_apogee, period_chase,
-     h_chase, inc_ang_chase, raan_chase, arg_perigee_cur) = current_orbit
-    (targ_name, r_targ_perigee, r_targ_apogee, period_targ,
-     h_targ, inc_ang_targ, raan_targ, arg_perigee_targ) = target
+    cur_orb = orb_obj(current_orbit, mu)
+    targ_orb = orb_obj(target, mu)
 
     # All orbits are quite circular, assume that the radius of each orbit
     # Is the average of its apogee and perigee (semimajor axis)
     # This will give us an approximate 1km error
-    semimajor_axis_chase = (r_chase_perigee+r_chase_apogee)/2
+    semimajor_axis_chase = (cur_orb.r_p + cur_orb.r_a)/2
 
-    h_mid_ellipse = form.angular_momentum(r_chase_perigee, r_targ_apogee, mu)
+    h_mid_ellipse = form.angular_momentum(cur_orb.r_p, targ_orb.r_a, mu)
 
-    delta_v_inc = form.delta_plane(h_chase, semimajor_axis_chase, inc_ang_chase, inc_ang_targ)
-    delta_v_raan = form.delta_plane(h_chase, semimajor_axis_chase, raan_chase, raan_targ)
-    delta_v_init = form.delta_v(h_chase, h_mid_ellipse, r_chase_perigee)
-    delta_v_fin = form.delta_v(h_mid_ellipse, h_targ, r_targ_apogee)
+    delta_v_inc = form.delta_plane(cur_orb.h, semimajor_axis_chase, cur_orb.i, targ_orb.i)
+    delta_v_raan = form.delta_plane(cur_orb.h, semimajor_axis_chase, cur_orb.raan, targ_orb.raan)
+    delta_v_init = form.delta_v(cur_orb.h, h_mid_ellipse, cur_orb.r_p)
+    delta_v_fin = form.delta_v(h_mid_ellipse, targ_orb.h, targ_orb.r_a)
     delta_v_hohmann = delta_v_init + delta_v_fin
     delta_v_total = delta_v_inc + delta_v_raan + delta_v_hohmann
 
-    print("\033[4m" + "Transfer values:" + "\033[0m")
+    print("\033[4m" + "Transfer values for " + targ_orb.name + ": \033[0m")
     print(f"Velocity change for Inclination change (km/s):     {(delta_v_inc):.3f}")
     print(f"Velocity change for RAAN change (km/s):            {(delta_v_raan):.3f}")
     print(F"Velocity change to enter Hohmann (km/s)            {(delta_v_init):.3f}")
@@ -262,7 +260,7 @@ def sort_orb_efficiency(current_orbit : tuple, orbits : list, omega_e : float,
         total_delta_v[i] = v_total
 
     v_min = np.min(total_delta_v)
-    v_i_min = np.argmax(total_delta_v)
+    v_i_min = np.argmin(total_delta_v)
 
     print(f"Transferring to {orbits[v_i_min][0]} \n \n")
     # Remove orbit that has already been reached

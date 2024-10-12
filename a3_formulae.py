@@ -43,7 +43,7 @@ def delta_v(angular_momentum_1, angular_momentum_2, radius) -> float:
 
 def delta_plane(angular_momentum : float, radius : float, ang_1 : float, ang_2 :float) -> float:
     v = angular_momentum/radius
-    delta_ang = abs(np.radians(ang_1 - ang_2))
+    delta_ang = abs(ang_1 - ang_2)
     delta_v = 2 * v * np.sin(delta_ang/2)
 
     return delta_v
