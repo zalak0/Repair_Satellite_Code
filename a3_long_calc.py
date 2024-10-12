@@ -236,36 +236,76 @@ def delta_vs(current_orbit, target, mu):
 
     return delta_v_total
 
-def sort_orb_efficiency(current_orbit : tuple, orbits : list, omega_e : float,
+def mission_total_v(chase, targ, points_sim, m0, earth_rad, omega_e, mu, print_stuff: int = 1):
+    chase_orb = orb_obj(chase, mu)
+
+    if print_stuff:
+        print("\033[4m" + "Orbit transfers from " + chase_orb.name + ": \033[0m \n\n")
+
+    v_transfers = delta_vs(chase, targ, mu)
+
+    i_diff, period_mid = orb_sim.sim_delta_time(chase, targ,
+                                omega_e, points_sim, mu)
+
+    period_current = chase_orb.T
+    transfer_time = form.total_time(period_current, period_mid, i_diff, points_sim, T_return = 1)
+    phase_vs = phase_sim.phase_sim(transfer_time, targ,  m0,  earth_rad, mu)
+
+    v_total = v_transfers + phase_vs
+    print(f"Total delta v required (km/s):                     {(v_total):.3f}", end = '\n\n')
+
+    return v_total
+
+def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
                         points_sim : float, m0 : float, earth_rad : float, mu : float):
-    # Unpack original orbit
-    cur_orb = orb_obj(current_orbit, mu)
 
     # Create array to store total delta v for each possible orbit transfer
-    total_delta_v = np.zeros(len(orbits))
+    # Extra row to take into account parking orbits
+    park_delta_v =  np.zeros(len(orbits))
+    transfer_delta_v = np.zeros(len(orbits))
+    total_delta_v = np.zeros((len(orbits), len(orbits)))
 
     for i in range(len(orbits)):
-        v_transfers = delta_vs(current_orbit, orbits[i], mu)
 
-        i_diff, period_mid = orb_sim.sim_delta_time(current_orbit, orbits[i],
-                                    omega_e, points_sim, mu)
+        delta_park = mission_total_v(park_orbit, orbits[i], points_sim, m0,
+                                    earth_rad, omega_e, mu)
+        park_delta_v[i] = delta_park
+        for j in range(len(orbits)):
+            if i != j and i < j and i != 0:
+                print(i,j)
+                delta_v2 = mission_total_v(orbits[i], orbits[j], points_sim, m0,
+                                            earth_rad, omega_e, mu, print_stuff = 0)
+                transfer_delta_v[j] = delta_v2
+            elif i != j and i ==0:
+                print(i,j)
+                delta_v2 = mission_total_v(orbits[i], orbits[j], points_sim, m0,
+                                            earth_rad, omega_e, mu, print_stuff = 0)
+                transfer_delta_v[j - 1] = delta_v2
+            else:
+                continue
 
-        period_current = cur_orb.T
-        transfer_time = form.total_time(period_current, period_mid, i_diff, points_sim, T_return = 1)
-        phase_vs = phase_sim.phase_sim(transfer_time, orbits[i],  m0,  earth_rad, mu)
+    for i in range(len(orbits)):
+        for j in range(len(orbits)):
+            if i != j-1 and i != j:
+                total_delta_v[i][j]= park_delta_v[i] + transfer_delta_v[j-1] + transfer_delta_v[j]
+            else:
+                total_delta_v[i][j] = 0
 
-        v_total = v_transfers + phase_vs
-        print(f"Total delta v required (km/s):                     {(v_total):.3f}", end = '\n\n')
+    # Create a mask for non-zero values
+    non_zero_mask = total_delta_v > 0
 
-        total_delta_v[i] = v_total
+    # Use the mask to filter non-zero values and find the minimum value
+    min_non_zero_value = np.min(total_delta_v[non_zero_mask])
 
-    v_min = np.min(total_delta_v)
-    v_i_min = np.argmin(total_delta_v)
+    # Get the index of the minimum non-zero value
+    min_index = np.argwhere(total_delta_v == min_non_zero_value)
+    min_value = total_delta_v[min_index[0][0], min_index[0][1]]
 
-    print(f"Transferring to {orbits[v_i_min][0]} \n \n")
-    # Remove orbit that has already been reached
-    new_orbit = orbits[v_i_min]
+    # print(total_delta_v)
+    # print(min_index)
 
-    del orbits[v_i_min]
+    print(f"Transferring to         {orbits[min_index[0][0]][0]}")
+    print(f"Then transferring to    {orbits[min_index[0][1]][0]}")
+    print(f"Then transferring to    {orbits[min_index[0][1] - 1][0]}")
 
-    return orbits, new_orbit, v_min, transfer_time
+    return min_value

@@ -20,7 +20,7 @@ def main() -> None:
     # Amount of points being plotted in a given time frame
     # Here in this case, one period of a certain orbit
     # Need to simulate orbits to figure out exact location of satellite for phasing
-    points_sim = 2000
+    points_sim = 1000
 
 
     # The following is information for Questions 2, 3 and 4
@@ -68,17 +68,10 @@ def main() -> None:
     mission_delta_v = 0
     total_time = 0
 
-    # Simulate each orbit
-    for i in range(len(orbits)):
-        new_orbits_1, transfer_orbit, v_min, transfer_time \
-            = lc.sort_orb_efficiency(current_orbit, orbits,
+    mission_delta_v = lc.sort_orb_efficiency(current_orbit, orbits,
                     omega_e, points_sim, m0, earth_rad, mu)
-        current_orbit = transfer_orbit
-        orbits = new_orbits_1
-        mission_delta_v = mission_delta_v + v_min
-        total_time = total_time + transfer_time
 
-    print(f"Total mission delta-v (km/s):     {mission_delta_v:.3f}")
+    print(f"Total most efficient mission delta-v (km/s):     {mission_delta_v:.3f}")
 
 if __name__ == '__main__':
     main()
