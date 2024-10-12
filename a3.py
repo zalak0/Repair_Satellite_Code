@@ -52,32 +52,33 @@ def main() -> None:
 
     # Pack each orbit for calculations
     orbit_org = ("Parking orbit", r_org, r_org, period_org,
-                 h_org, inc_ang_org, raan_org)
+                 h_org, inc_ang_org, raan_org, arg_perigee_1)
     orbit_1 = ("Hubble Space Telescope", r_perigee_1, r_apogee_1, period_1,
-                h_1, inc_ang_1, raan_1)
+                h_1, inc_ang_1, raan_1, arg_perigee_1)
     orbit_2 = ("Terra", r_perigee_2, r_apogee_2, period_2,
-                h_2, inc_ang_2, raan_2)
+                h_2, inc_ang_2, raan_2, arg_perigee_2)
     orbit_3 = ("SORCE", r_perigee_3, r_apogee_3, period_3,
-                h_3, inc_ang_3, raan_3)
+                h_3, inc_ang_3, raan_3, arg_perigee_3)
 
     # Pack the target orbits
     orbits = [orbit_1, orbit_2, orbit_3]
 
     # Set the current orbit to be the selected parking orbit
     current_orbit = orbit_org
-    mission_delta_vs = np.zeros(len(orbits))
+    mission_delta_v = 0
+    total_time = 0
 
     # Simulate each orbit
     for i in range(len(orbits)):
-        new_orbits_1, transfer_orbit, v_min = lc.sort_orb_efficiency(current_orbit, orbits,
-                                                    omega_e, points_sim, m0, earth_rad, mu)
+        new_orbits_1, transfer_orbit, v_min, transfer_time \
+            = lc.sort_orb_efficiency(current_orbit, orbits,
+                    omega_e, points_sim, m0, earth_rad, mu)
         current_orbit = transfer_orbit
         orbits = new_orbits_1
-        mission_delta_vs[i] = v_min
+        mission_delta_v = mission_delta_v + v_min
+        total_time = total_time + transfer_time
 
-    total_delta_v = np.sum(mission_delta_vs)
-
-    print(f"Total mission delta-v (km/s):     {total_delta_v:.3f}")
+    print(f"Total mission delta-v (km/s):     {mission_delta_v:.3f}")
 
 if __name__ == '__main__':
     main()

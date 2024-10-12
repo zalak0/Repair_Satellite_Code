@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 from scipy.integrate import solve_ivp
+from orbit_object import Orbit as orb_obj
 import a3_formulae as form
 
 def time_from_perigee(period : float, t_elapse : float):
@@ -63,7 +64,7 @@ def plot_phase_orbit(fig : Figure, ax : Axes, perigee : float, apogee : float,
         plt.show()
 
 def phase_sim(time_elapsed_init : float, target : tuple, m0 : float,
-              earth_rad : float, mu : float):
+              earth_rad : float, mu : float) -> float:
     """Simulates phasing maneuver
 
     Args:
@@ -75,26 +76,25 @@ def phase_sim(time_elapsed_init : float, target : tuple, m0 : float,
         earth_rad (float): radius of Earth
         mu (float): Gravitational constant
     """
-    (orbit_name, r_targ_perigee, r_targ_apogee, period_targ,
-    h_targ, inc_ang_targ, raan_targ) = target
+    targ_orb = orb_obj(target, mu)
 
-    time_diff_init = time_from_perigee(period_targ, time_elapsed_init)
-    time_to_perigee = period_targ - time_diff_init
-    T_phase = period_phase(period_targ, time_to_perigee, earth_rad, mu)
+    time_diff_init = time_from_perigee(targ_orb.T, time_elapsed_init)
+    time_to_perigee = targ_orb.T - time_diff_init
+    T_phase = period_phase(targ_orb.T, time_to_perigee, earth_rad, mu)
     semimajor_phase = form.semimajor_reversed(T_phase, mu)
-    apogee_phase = apogee_rad(semimajor_phase, r_targ_perigee)
+    apogee_phase = apogee_rad(semimajor_phase, targ_orb.r_a)
 
-    print(f"Target orbit period(s)            {target[5]:.3f}")
-    print(f"Target orbit apogee (km)          {r_targ_apogee:.3f}")
+    print(f"Target orbit period(s)            {targ_orb.T:.3f}")
+    print(f"Target orbit apogee (km)          {targ_orb.r_a:.3f}")
     print(f"Phase orbit period (s):           {T_phase:.3f}")
-    print(f"Phase orbit perigee (km):         {r_targ_perigee:.3f}")
+    print(f"Phase orbit perigee (km):         {targ_orb.r_p:.3f}")
     print(f"Phase orbit apogee (km):          {apogee_phase:.3f}")
 
-    h_circ = form.angular_momentum(r_targ_perigee, r_targ_perigee, mu)
-    h_targ = form.angular_momentum(r_targ_perigee, r_targ_apogee, mu)
-    h_phase = form.angular_momentum(r_targ_perigee, apogee_phase, mu)
+    h_circ = form.angular_momentum(targ_orb.r_p, targ_orb.r_p, mu)
+    h_targ = form.angular_momentum(targ_orb.r_p, targ_orb.r_a, mu)
+    h_phase = form.angular_momentum(targ_orb.r_p, apogee_phase, mu)
 
-    delta_v_phase_targ = form.delta_v(h_targ, h_phase, r_targ_perigee)
+    delta_v_phase_targ = form.delta_v(h_targ, h_phase, targ_orb.r_p)
     #delta_v_phase_circ = form.delta_v(h_circ, h_phase, r_targ_perigee)
     form.change_in_mass(delta_v_phase_targ*2, m0, 300)
 
@@ -102,7 +102,4 @@ def phase_sim(time_elapsed_init : float, target : tuple, m0 : float,
     print(f"Delta v to exit phase:                               {delta_v_phase_targ:.3f}")
     print(f"Total delta v to phase from raised orbit (km/s):     {(delta_v_phase_targ*2):.3f}")
 
-    # Create a new figure
-    fig, ax = plt.subplots()
-    plot_phase_orbit(fig, ax, r_targ_perigee, r_targ_apogee, "Target", earth_rad)
-    plot_phase_orbit(fig, ax, r_targ_perigee, apogee_phase, "Phasing maneuver", earth_rad, show = 1)
+    return delta_v_phase_targ*2

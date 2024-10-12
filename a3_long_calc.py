@@ -7,6 +7,7 @@ or calculating multiple values at once
 from scipy import constants as spconst
 from scipy import integrate
 import numpy as np
+from orbit_object import Orbit as orb_obj
 import a3_formulae as form
 import a3_orbit_sim as orb_sim
 import a3_phase_sim as phase_sim
@@ -208,11 +209,11 @@ def fix_orbit(orbit: tuple, r_start: np.ndarray, r_finish: np.ndarray,
     return np.array(x_fix), np.array(y_fix), np.array(z_fix), i_diff
 
 
-def delta_vs(chase, target, mu):
+def delta_vs(current_orbit, target, mu):
     (chase_name, r_chase_perigee, r_chase_apogee, period_chase,
-     h_chase, inc_ang_chase, raan_chase) = chase
+     h_chase, inc_ang_chase, raan_chase, arg_perigee_cur) = current_orbit
     (targ_name, r_targ_perigee, r_targ_apogee, period_targ,
-     h_targ, inc_ang_targ, raan_targ) = target
+     h_targ, inc_ang_targ, raan_targ, arg_perigee_targ) = target
 
     # All orbits are quite circular, assume that the radius of each orbit
     # Is the average of its apogee and perigee (semimajor axis)
@@ -234,38 +235,39 @@ def delta_vs(chase, target, mu):
     print(F"Velocity change to enter Hohmann (km/s)            {(delta_v_init):.3f}")
     print(F"Velocity change to exit Hohmann (km/s)             {(delta_v_fin):.3f}")
     print(f"Velocity change for Hohmann (km/s):                {(delta_v_hohmann):.3f}")
-    print(f"Total delta v required (km/s):                     {(delta_v_total):.3f}", end = '\n\n')
 
     return delta_v_total
 
-def sort_orb_efficiency(orbit_org : tuple, orbits : list, omega_e : float,
+def sort_orb_efficiency(current_orbit : tuple, orbits : list, omega_e : float,
                         points_sim : float, m0 : float, earth_rad : float, mu : float):
     # Unpack original orbit
-    (orbit_name, r_org, r_org, period_org,
-    h_org, inc_ang_org, raan_org) = orbit_org
+    cur_orb = orb_obj(current_orbit, mu)
 
     # Create array to store total delta v for each possible orbit transfer
     total_delta_v = np.zeros(len(orbits))
 
     for i in range(len(orbits)):
-        v_total = delta_vs(orbit_org, orbits[i], mu)
+        v_transfers = delta_vs(current_orbit, orbits[i], mu)
+
+        i_diff, period_mid = orb_sim.sim_delta_time(current_orbit, orbits[i],
+                                    omega_e, points_sim, mu)
+
+        period_current = cur_orb.T
+        transfer_time = form.total_time(period_current, period_mid, i_diff, points_sim, T_return = 1)
+        phase_vs = phase_sim.phase_sim(transfer_time, orbits[i],  m0,  earth_rad, mu)
+
+        v_total = v_transfers + phase_vs
+        print(f"Total delta v required (km/s):                     {(v_total):.3f}", end = '\n\n')
+
         total_delta_v[i] = v_total
 
     v_min = np.min(total_delta_v)
     v_i_min = np.argmax(total_delta_v)
 
     print(f"Transferring to {orbits[v_i_min][0]} \n \n")
-
-    i_diff, period_mid = orb_sim.sim_delta_time(current_orbit, orbits[v_i_min],
-                                omega_e, points_sim, mu)
-
-    period_current = current_orbit[5]
-    total_time = form.total_time(period_current, period_mid, i_diff, points_sim, T_return = 1)
-    phase_sim.phase_sim(total_time, orbits[v_i_min],  m0,  earth_rad, mu)
-
     # Remove orbit that has already been reached
-    current_orbit = orbits[v_i_min]
+    new_orbit = orbits[v_i_min]
 
     del orbits[v_i_min]
 
-    return orbits, current_orbit, v_min
+    return orbits, new_orbit, v_min, transfer_time
