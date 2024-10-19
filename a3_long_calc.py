@@ -209,7 +209,7 @@ def fix_orbit(orbit: tuple, r_start: np.ndarray, r_finish: np.ndarray,
     return np.array(x_fix), np.array(y_fix), np.array(z_fix), i_diff
 
 
-def delta_vs(current_orbit, target, mu):
+def delta_vs(current_orbit, target, m0, isp, mu):
     cur_orb = orb_obj(current_orbit, mu)
     targ_orb = orb_obj(target, mu)
 
@@ -236,13 +236,13 @@ def delta_vs(current_orbit, target, mu):
 
     return delta_v_total
 
-def mission_total_v(chase, targ, points_sim, m0, earth_rad, omega_e, mu, print_stuff: int = 1):
+def mission_total_v(chase, targ, points_sim, m0, isp, earth_rad, omega_e, mu, print_stuff: int = 1):
     chase_orb = orb_obj(chase, mu)
 
     if print_stuff:
         print("\033[4m" + "Orbit transfers from " + chase_orb.name + ": \033[0m \n\n")
 
-    v_transfers = delta_vs(chase, targ, mu)
+    v_transfers = delta_vs(chase, targ, m0, isp, mu)
 
     i_diff, period_mid = orb_sim.sim_delta_time(chase, targ,
                                 omega_e, points_sim, mu)
@@ -252,12 +252,13 @@ def mission_total_v(chase, targ, points_sim, m0, earth_rad, omega_e, mu, print_s
     phase_vs = phase_sim.phase_sim(transfer_time, targ,  m0,  earth_rad, mu)
 
     v_total = v_transfers + phase_vs
+    form.change_in_mass(v_total, m0, isp)
     print(f"Total delta v required (km/s):                     {(v_total):.3f}", end = '\n\n')
 
     return v_total
 
 def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
-                        points_sim : float, m0 : float, earth_rad : float, mu : float):
+                        points_sim : float, m0 : float, isp : float, earth_rad : float, mu : float):
 
     # Create array to store total delta v for each possible orbit transfer
     # Extra row to take into account parking orbits
@@ -267,7 +268,7 @@ def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
 
     for i in range(len(orbits)):
         # Finds delta_v to exit inital parking orbit
-        delta_park = mission_total_v(park_orbit, orbits[i], points_sim, m0,
+        delta_park = mission_total_v(park_orbit, orbits[i], points_sim, m0, isp,
                                     earth_rad, omega_e, mu)
         park_delta_v[i] = delta_park
 
@@ -278,14 +279,14 @@ def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
                 # Keeping track of index
                 print(i,j)
                 # Calculate delta-v between two unique orbits
-                delta_v2 = mission_total_v(orbits[i], orbits[j], points_sim, m0,
+                delta_v2 = mission_total_v(orbits[i], orbits[j], points_sim, m0, isp,
                                             earth_rad, omega_e, mu, print_stuff = 0)
                 transfer_delta_v[j] = delta_v2
 
             # Initial case, acts a bit different due to parking orbit
             elif i != j and i ==0:
                 print(i,j)
-                delta_v2 = mission_total_v(orbits[i], orbits[j], points_sim, m0,
+                delta_v2 = mission_total_v(orbits[i], orbits[j], points_sim, m0, isp,
                                             earth_rad, omega_e, mu, print_stuff = 0)
                 transfer_delta_v[j - 1] = delta_v2
             else:

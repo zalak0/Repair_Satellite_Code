@@ -96,7 +96,7 @@ def phase_sim(time_elapsed_init : float, target : tuple, m0 : float,
 
     delta_v_phase_targ = form.delta_v(h_targ, h_phase, targ_orb.r_p)
     #delta_v_phase_circ = form.delta_v(h_circ, h_phase, r_targ_perigee)
-    form.change_in_mass(delta_v_phase_targ*2, m0, 300)
+    form.change_in_mass(delta_v_phase_targ*2, m0, 228.1)
 
     print(f"Delta v to enter phase:                              {delta_v_phase_targ:.3f}")
     print(f"Delta v to exit phase:                               {delta_v_phase_targ:.3f}")

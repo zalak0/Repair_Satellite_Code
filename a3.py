@@ -22,6 +22,8 @@ def main() -> None:
     # Need to simulate orbits to figure out exact location of satellite for phasing
     points_sim = 1000
 
+    isp = 228.1
+    thrust = 22
 
     # The following is information for Questions 2, 3 and 4
     # Original satellite: Orbital parameters
@@ -69,7 +71,7 @@ def main() -> None:
     total_time = 0
 
     mission_delta_v = lc.sort_orb_efficiency(current_orbit, orbits,
-                    omega_e, points_sim, m0, earth_rad, mu)
+                    omega_e, points_sim, m0, isp, earth_rad, mu)
 
     print(f"Total most efficient mission delta-v (km/s):     {mission_delta_v:.3f}")
 
