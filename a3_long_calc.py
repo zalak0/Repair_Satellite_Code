@@ -209,34 +209,6 @@ def fix_orbit(orbit: tuple, r_start: np.ndarray, r_finish: np.ndarray,
     # Convert lists back to numpy arrays for consistency
     return np.array(x_fix), np.array(y_fix), np.array(z_fix), i_diff
 
-
-def delta_vs(current, target, m0, isp, mu):
-    cur_orb = orb_obj(current, mu)
-    targ_orb = orb_obj(target, mu)
-
-    # All orbits are quite circular, assume that the radius of each orbit
-    # Is the average of its apogee and perigee (semimajor axis)
-    # This will give us an approximate 1km error
-    semimajor_axis_chase = (cur_orb.r_p + cur_orb.r_a)/2
-
-    h_mid_ellipse = form.angular_momentum(cur_orb.r_p, targ_orb.r_a, mu)
-
-    delta_v_inc = form.delta_plane(cur_orb.h, semimajor_axis_chase, cur_orb.i, targ_orb.i)
-    delta_v_raan = form.delta_plane(cur_orb.h, semimajor_axis_chase, cur_orb.raan, targ_orb.raan)
-    delta_v_init = form.delta_v(cur_orb.h, h_mid_ellipse, cur_orb.r_p)
-    delta_v_fin = form.delta_v(h_mid_ellipse, targ_orb.h, targ_orb.r_a)
-    delta_v_hohmann = delta_v_init + delta_v_fin
-    delta_v_total = delta_v_inc + delta_v_raan + delta_v_hohmann
-
-    print("\033[4m" + "Transfer values from " + cur_orb.name + " to " + targ_orb.name + ": \033[0m")
-    print(f"Velocity change for Inclination change (km/s):     {(delta_v_inc):.3f}")
-    print(f"Velocity change for RAAN change (km/s):            {(delta_v_raan):.3f}")
-    print(F"Velocity change to enter Hohmann (km/s)            {(delta_v_init):.3f}")
-    print(F"Velocity change to exit Hohmann (km/s)             {(delta_v_fin):.3f}")
-    print(f"Velocity change for Hohmann (km/s):                {(delta_v_hohmann):.3f}")
-
-    return delta_v_total
-
 def apse_line(current : tuple, target : tuple, mu : float) -> float:
     cur_orb = orb_obj(current, mu)
     targ_orb = orb_obj(target, mu)
@@ -273,11 +245,38 @@ def apse_line(current : tuple, target : tuple, mu : float) -> float:
 
     delta_v = np.sqrt(v_tot1**2 + v_tot2**2 - 2 * v_tot1 * v_tot2 * np.cos(flight_ang_2 - flight_ang_1))
 
-    print(f"Total delta-v for Apse Line Rotation (km/s):       {delta_v:.3f}")
-
     return delta_v
 
-def mission_total_v(chase, targ, points_sim, m0, isp, earth_rad, omega_e, mu, print_stuff: int = 1):
+def delta_vs(current, target, m0, isp, mu):
+    cur_orb = orb_obj(current, mu)
+    targ_orb = orb_obj(target, mu)
+
+    # All orbits are quite circular, assume that the radius of each orbit
+    # Is the average of its apogee and perigee (semimajor axis)
+    # This will give us an approximate 1km error
+    semimajor_axis_chase = (cur_orb.r_p + cur_orb.r_a)/2
+
+    h_mid_ellipse = form.angular_momentum(cur_orb.r_p, targ_orb.r_a, mu)
+
+    apse_vs = apse_line(current, target, mu)
+    delta_v_inc = form.delta_plane(cur_orb.h, semimajor_axis_chase, cur_orb.i, targ_orb.i)
+    delta_v_raan = form.delta_plane(cur_orb.h, semimajor_axis_chase, cur_orb.raan, targ_orb.raan)
+    delta_v_init = form.delta_v(cur_orb.h, h_mid_ellipse, cur_orb.r_p)
+    delta_v_fin = form.delta_v(h_mid_ellipse, targ_orb.h, targ_orb.r_a)
+    delta_v_hohmann = delta_v_init + delta_v_fin
+    delta_v_total = delta_v_inc + delta_v_raan + delta_v_hohmann + apse_vs
+
+    print("\033[4m" + "Transfer values from " + cur_orb.name + " to " + targ_orb.name + ": \033[0m")
+    print(f"Velocity change for Apse Line Rotation (km/s):     {apse_vs:.3f}")
+    print(f"Velocity change for Inclination change (km/s):     {(delta_v_inc):.3f}")
+    print(f"Velocity change for RAAN change (km/s):            {(delta_v_raan):.3f}")
+    print(F"Velocity change to enter Hohmann (km/s)            {(delta_v_init):.3f}")
+    print(F"Velocity change to exit Hohmann (km/s)             {(delta_v_fin):.3f}")
+    print(f"Velocity change for Hohmann (km/s):                {(delta_v_hohmann):.3f}")
+
+    return delta_v_total
+
+def mission_total_v(chase, targ, points_sim, m0, isp, earth_rad, omega_e, mu):
     chase_orb = orb_obj(chase, mu)
 
     v_transfers = delta_vs(chase, targ, m0, isp, mu)
@@ -288,9 +287,8 @@ def mission_total_v(chase, targ, points_sim, m0, isp, earth_rad, omega_e, mu, pr
     period_current = chase_orb.T
     transfer_time = form.total_time(period_current, period_mid, i_diff, points_sim, T_return = 1)
     phase_vs = phase_sim.phase_sim(transfer_time, targ,  m0,  earth_rad, mu)
-    apse_vs = apse_line(chase, targ, mu)
 
-    v_total = v_transfers + phase_vs + apse_vs
+    v_total = v_transfers + phase_vs
     print(f"Total delta v required (km/s):                     {(v_total):.3f}", end = '\n\n')
 
     return v_total
@@ -315,50 +313,45 @@ def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
             # want to repeat calculations
             if i != j and i < j and i != 0:
                 # Keeping track of index
-                print(i,j)
+                #print(i,j)
                 # Calculate delta-v between two unique orbits
                 delta_v2 = mission_total_v(orbits[i], orbits[j], points_sim, m0, isp,
-                                            earth_rad, omega_e, mu, print_stuff = 0)
+                                            earth_rad, omega_e, mu)
                 transfer_delta_v[j] = delta_v2
 
             # Initial case, acts a bit different due to parking orbit
             elif i != j and i ==0:
-                print(i,j)
+                #print(i,j)
                 delta_v2 = mission_total_v(orbits[i], orbits[j], points_sim, m0, isp,
-                                            earth_rad, omega_e, mu, print_stuff = 0)
+                                            earth_rad, omega_e, mu)
                 transfer_delta_v[j - 1] = delta_v2
             else:
                 continue
 
-    # Now that all the transfer values are extracted, the following calculates
-    # every possible 'total delta-v' into a 2 dimensional array
+    # Calculate every possible 'total delta-v' into a 2D array
     for i in range(len(orbits)):
         for j in range(len(orbits)):
             if i != j-1 and i != j:
-                total_delta_v[i][j]= park_delta_v[i] + transfer_delta_v[j-1] + transfer_delta_v[j]
-                # if i == 2 and j == 1:
-                #     print(transfer_delta_v[j])
-                #     print(transfer_delta_v[j-1])
-                #     print(park_delta_v[i])
+                total_delta_v[i][j] = park_delta_v[i] + transfer_delta_v[j-1] + transfer_delta_v[j]
             else:
-                # Placeholder, can be aslo replaced with nan
-                total_delta_v[i][j] = 0
+                # Use np.nan for easier filtering later
+                total_delta_v[i][j] = np.nan
 
-    # Create a mask for non-zero values
-    non_zero_mask = total_delta_v > 0
+    # Create a mask for non-nan values
+    non_nan_mask = ~np.isnan(total_delta_v)
 
-    # Use the mask to filter non-zero values and find the minimum value
-    min_non_zero_value = np.min(total_delta_v[non_zero_mask])
+    # Use the mask to filter non-nan values and find the minimum value
+    min_non_nan_value = np.nanmin(total_delta_v[non_nan_mask])
 
-    # Get the index of the minimum non-zero value
-    min_index = np.argwhere(total_delta_v == min_non_zero_value)
+    # Get the index of the minimum non-nan value
+    min_index = np.argwhere(total_delta_v == min_non_nan_value)
     min_value = total_delta_v[min_index[0][0], min_index[0][1]]
 
-    # print(total_delta_v)
-    # print(min_index)
+    print(min_index)
 
-    print(f"Transferring to         {orbits[min_index[0][0]][0]}")
-    print(f"Then transferring to    {orbits[min_index[0][1] - 1][0]}")
-    print(f"Then transferring to    {orbits[min_index[0][1]][0]}")
+    if min_index[0][0] == 0 and min_index[0][1]:
+        print(f"Transferring to         {orbits[min_index[0][0]][0]}")
+        print(f"Then transferring to    {orbits[min_index[0][1] - 1][0]}")
+        print(f"Then transferring to    {orbits[min_index[0][1]][0]}")
 
     return min_value

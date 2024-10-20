@@ -23,6 +23,7 @@ def period_phase(period_target : float, t_to_perigee : float, earth_rad :float, 
 
 def apogee_rad(semimajor_axis : float, perigee : float):
     apogee = 2*semimajor_axis - perigee
+    print(apogee)
     return apogee
 
 # Define a function to calculate the orbit
@@ -82,7 +83,7 @@ def phase_sim(time_elapsed_init : float, target : tuple, m0 : float,
     time_to_perigee = targ_orb.T - time_diff_init
     T_phase = period_phase(targ_orb.T, time_to_perigee, earth_rad, mu)
     semimajor_phase = form.semimajor_reversed(T_phase, mu)
-    apogee_phase = apogee_rad(semimajor_phase, targ_orb.r_a)
+    apogee_phase = apogee_rad(semimajor_phase, targ_orb.r_p)
 
     # print(f"Target orbit period(s)            {targ_orb.T:.3f}")
     # print(f"Target orbit apogee (km)          {targ_orb.r_a:.3f}")

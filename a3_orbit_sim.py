@@ -46,7 +46,6 @@ def orbital_derivatives(t : tuple[float], y : tuple[float], period : float) -> n
 
     return [draan_dt, domega_dt, dmean_dt]
 
-
 def sim_orbit(cur_orb, mean_anomaly, mu : float, points_sim : tuple[float]
               ) -> tuple[np.ndarray, np.ndarray,
                         np.ndarray, np.ndarray, np.ndarray]:
@@ -167,12 +166,17 @@ def sim_delta_time(current : tuple, target : tuple, omega_e : float,
     # Note that variables starting with ground are not used
 
     chase_orb = orb_obj(("Chase orbit", cur_orb.r_p, cur_orb.r_a, cur_orb.T,
-                        cur_orb.h, cur_orb.i, cur_orb.raan, targ_orb.omega), mu)
+                        cur_orb.h, cur_orb.i, cur_orb.raan, cur_orb.omega), mu)
     orb_chase, vel_chase = sim_orbit(chase_orb, mean_anomaly, mu,
                                    points_sim)
 
+    arg_per_orb = orb_obj(("Arg of Perigee orbit", cur_orb.r_p, cur_orb.r_a, cur_orb.T,
+                            cur_orb.h, cur_orb.i, cur_orb.raan, targ_orb.omega), mu)
+    orb_arg_per, vel_arg_per = sim_orbit(arg_per_orb, mean_anomaly, mu,
+                                   points_sim)
+
     inc_orb = orb_obj(("Inclination orbit", cur_orb.r_p, cur_orb.r_a, cur_orb.T,
-                        cur_orb.h, targ_orb.i, cur_orb.raan, cur_orb.omega), mu)
+                        cur_orb.h, targ_orb.i, cur_orb.raan, targ_orb.omega), mu)
     orb_inc, vel_inc = sim_orbit(inc_orb, mean_anomaly, mu,
                                    points_sim)
 
@@ -197,7 +201,8 @@ def sim_delta_time(current : tuple, target : tuple, omega_e : float,
     # Which are the points where the delta v occurs
 
     print("Calculating orbit intersections...")
-    r_inc_start1, r_inc_start2 = lc.check_intersection(orb_chase, orb_inc)
+    r_inc_start1, r_inc_start2 = lc.check_intersection(orb_chase, orb_arg_per)
+    r_inc_start1, r_inc_start2 = lc.check_intersection(orb_arg_per, orb_inc)
     r_raan_start1, r_raan_start2 = lc.check_intersection(orb_inc, orb_raan)
     r_hohmann_start1, r_hohmann_start2 = lc.check_intersection(orb_raan, orb_hohmann)
     r_hohmann_finish1, r_hohmann_finish2 = lc.check_intersection(orb_hohmann, orb_targ)
@@ -249,72 +254,3 @@ def burn_dynamics(
     m_dot = -thrust/(I_sp * g0)                           # use Equation 3
 
     return np.array([*r_dot, *v_dot, m_dot])
-
-# This function should have the same signature as your dynamics function
-def circularise_stop_condition(
-    t: float,
-    state: np.ndarray,
-    mu: float,
-    I_sp: float,        # We don't use I_sp or thrust, but they are needed to
-    thrust: float       # match the dynamics function signature (defined later)
-) -> float:
-    """Stopping condition for when an orbit has been circularised.
-
-    Args:
-        t (float): The current time
-        state (np.ndarray): The position and velocity vectors
-        mu (float): The gravitational parameter
-
-    Returns:
-        float: The different between the current and target eccentricity
-    """
-    r, v = state[0:3], state[3:6]       # unpack the state vector
-
-    # Desired eccentricity for a circular orbit
-    e_target = 0.005                    # We leave a tolerance of 0.005, rather than 0
-    e_current = form.eccentricity_circ(r, v, mu)  # The current eccentricity
-
-    # When the stopping function returns 0, the integration stops.
-    return e_current - e_target
-
-def circularise_orbit(r0 : tuple, v0 : tuple, m0 : float, isp : float, thrust : float, mu : float):
-    mu_earth = mu * 10**(3*3)
-
-    e_init = form.eccentricity_circ(r0, v0, mu_earth)
-    print(f"Initial eccentricity: {e_init:.4f}", end="\n\n")
-
-    # ============ Set up the integrator
-
-    # This line tells solve_ivp to stop when the
-    # circularise_stop_condition function returns 0
-    circularise_stop_condition.terminal = True
-
-    # Generally, it's good practice to upperbound the integration time,
-    # however we don't have to since we have a stopping condition
-    t_span = [0, 3000]        # Change np.inf to a number > 2000 if you want to set a max time
-    y0 = np.array([*r0, *v0, m0])
-
-    solution = solve_ivp(
-        burn_dynamics,
-        t_span,
-        y0,
-        args=(mu_earth, isp, thrust),
-        max_step=20,
-        events=(circularise_stop_condition,)
-    )
-
-    t_final = solution.t[-1]
-    r_final = solution.y[0:3, -1]
-    v_final = solution.y[3:6, -1]
-    m_final = solution.y[6, -1]
-
-    e_final = form.eccentricity_circ(r_final, v_final, mu_earth)
-    print(f"Eccentricity final      {e_final:.4f}")
-    delta_m = m0 - m_final
-
-    print("\033[4m" + "Circulization results:" + "\033[0m")
-    print(f"Time taken:             {t_final:.2f} s")
-    print(f"Mass used:              {delta_m:.2f} kg")
-    print(f"Final eccentricity:     {e_final:.4f}")
-
-    return delta_m
