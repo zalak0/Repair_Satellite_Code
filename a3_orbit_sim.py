@@ -5,10 +5,10 @@ File repsonsible for simulating and extracting array values, mainly used
 for plotting purposes.
 """
 import numpy as np
-from matplotlib.figure import Figure
-from matplotlib.axes import Axes
 from scipy.integrate import solve_ivp
 from orbit_object import Orbit as orb_obj
+from scipy import constants as spconst
+import numpy as np
 import a3_long_calc as lc
 import a3_formulae as form
 
@@ -212,3 +212,109 @@ def sim_delta_time(current : tuple, target : tuple, omega_e : float,
                     lc.fix_orbit(orb_hohmann, r_hohmann_start1, r_hohmann_finish1, 0)
 
     return (i_diff_inc, i_diff_raan, i_diff_hohmann), period_mid
+
+def burn_dynamics(
+    t: float,
+    state: np.ndarray,
+    mu: float,
+    I_sp: float,
+    thrust: float
+) -> np.ndarray:
+    """The dynamics of a satellite during a burn.
+
+    Args:
+        t (float): Currrent time step
+        state (np.ndarray): The current state of the satellite.
+        mu (float): The gravitational parameter of the central body.
+        I_sp (float): The specific impulse of the satellite's thruster.
+        thrust (float): A constant thrust.
+
+    Returns:
+        np.ndarray: A vector of the derivatives of the state.
+    """
+    # Mass is now part of the satellite state vector!
+    r = state[:3]                   # The current position vector (m)
+    r_mag = np.linalg.norm(r)       # The current radius of the satellite (m)
+
+    v = state[3:6]                  # The current velocity vector (m/s)
+    v_mag = np.linalg.norm(v)
+
+    m = state[6]                    # The current mass of the satellite (kg)
+
+    g0 = spconst.g                 # Gravity at sea level (m/s^2)
+
+    # TODO: Define the burn dynamics
+    r_dot = v
+    v_dot = -mu * r/(r_mag**3) + (thrust * (v/v_mag))/m           # use Equation 1 and 2
+    m_dot = -thrust/(I_sp * g0)                           # use Equation 3
+
+    return np.array([*r_dot, *v_dot, m_dot])
+
+# This function should have the same signature as your dynamics function
+def circularise_stop_condition(
+    t: float,
+    state: np.ndarray,
+    mu: float,
+    I_sp: float,        # We don't use I_sp or thrust, but they are needed to
+    thrust: float       # match the dynamics function signature (defined later)
+) -> float:
+    """Stopping condition for when an orbit has been circularised.
+
+    Args:
+        t (float): The current time
+        state (np.ndarray): The position and velocity vectors
+        mu (float): The gravitational parameter
+
+    Returns:
+        float: The different between the current and target eccentricity
+    """
+    r, v = state[0:3], state[3:6]       # unpack the state vector
+
+    # Desired eccentricity for a circular orbit
+    e_target = 0.005                    # We leave a tolerance of 0.005, rather than 0
+    e_current = form.eccentricity_circ(r, v, mu)  # The current eccentricity
+
+    # When the stopping function returns 0, the integration stops.
+    return e_current - e_target
+
+def circularise_orbit(r0 : tuple, v0 : tuple, m0 : float, isp : float, thrust : float, mu : float):
+    mu_earth = mu * 10**(3*3)
+
+    e_init = form.eccentricity_circ(r0, v0, mu_earth)
+    print(f"Initial eccentricity: {e_init:.4f}", end="\n\n")
+
+    # ============ Set up the integrator
+
+    # This line tells solve_ivp to stop when the
+    # circularise_stop_condition function returns 0
+    circularise_stop_condition.terminal = True
+
+    # Generally, it's good practice to upperbound the integration time,
+    # however we don't have to since we have a stopping condition
+    t_span = [0, 3000]        # Change np.inf to a number > 2000 if you want to set a max time
+    y0 = np.array([*r0, *v0, m0])
+
+    solution = solve_ivp(
+        burn_dynamics,
+        t_span,
+        y0,
+        args=(mu_earth, isp, thrust),
+        max_step=20,
+        events=(circularise_stop_condition,)
+    )
+
+    t_final = solution.t[-1]
+    r_final = solution.y[0:3, -1]
+    v_final = solution.y[3:6, -1]
+    m_final = solution.y[6, -1]
+
+    e_final = form.eccentricity_circ(r_final, v_final, mu_earth)
+    print(f"Eccentricity final      {e_final:.4f}")
+    delta_m = m0 - m_final
+
+    print("\033[4m" + "Circulization results:" + "\033[0m")
+    print(f"Time taken:             {t_final:.2f} s")
+    print(f"Mass used:              {delta_m:.2f} kg")
+    print(f"Final eccentricity:     {e_final:.4f}")
+
+    return delta_m

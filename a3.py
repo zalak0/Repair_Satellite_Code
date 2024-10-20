@@ -28,7 +28,7 @@ def main() -> None:
     # The following is information for Questions 2, 3 and 4
     # Original satellite: Orbital parameters
     r_org = 1000 + earth_rad                            # Circular orbit
-    inc_ang_org, raan_org = -33.42, 144                 # Inclination angle and Right Angle of Ascending Node of original orbit
+    inc_ang_org, raan_org = 33.42, 144                 # Inclination angle and Right Angle of Ascending Node of original orbit
     period_org = form.period(r_org, mu)                 # Period of original orbit
     h_org = np.sqrt(r_org * mu)                         # Angular momentum of original orbit
     m0 = 40                                             # Satellite dry mass (kg)

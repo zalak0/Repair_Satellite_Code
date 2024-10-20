@@ -30,6 +30,23 @@ def eccentricity(perigee : float, apogee : float) -> float:
     e = (apogee - perigee)/(perigee + apogee)
     return e
 
+def eccentricity_circ(r: np.ndarray, v: np.ndarray, mu: float) -> float:
+    """Calculate the eccentricity of an orbit.
+
+    Args:
+        r (np.ndarray): Position vector
+        v (np.ndarray): Velocity vector
+        mu (float): Gravitational parameter
+
+    Returns:
+        float: The eccentricity of the orbit
+    """
+    # TODO: Implement the eccentricity calculation
+    h = np.cross(r, v)
+    r_mag = np.linalg.norm(r)
+    e = (np.cross(v, h))/mu - r/r_mag
+    return np.linalg.norm(e)
+
 def angular_momentum(perigee : float, apogee : float, mu : float) -> float:
     h = np.sqrt(2 * mu) * np.sqrt((perigee * apogee)/(perigee + apogee))
     return h
