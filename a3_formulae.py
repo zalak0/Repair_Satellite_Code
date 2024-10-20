@@ -48,10 +48,11 @@ def delta_plane(angular_momentum : float, radius : float, ang_1 : float, ang_2 :
 
     return delta_v
 
-def change_in_mass(delta_v, m0, specific_impulse, gravity = 9.81) -> float:
+def change_in_mass(delta_v, mf, specific_impulse, gravity = 9.81) -> float:
     delta_vms = delta_v * 1000
-    dm = m0 * (1-np.e**(-delta_vms/(specific_impulse*gravity)))
-    print(f"Fuel mass required (Isp = {specific_impulse}):              {dm:.3f}kg")
+    m0 = np.e**(delta_vms/(specific_impulse*gravity)) * mf
+    dm = m0 - mf
+    print(f"Fuel mass required (Isp = {specific_impulse}):              {m0:.3f}kg")
     return dm
 
 def total_time(period_chase : float, period_mid : float,

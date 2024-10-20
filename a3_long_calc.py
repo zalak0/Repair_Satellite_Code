@@ -227,7 +227,7 @@ def delta_vs(current_orbit, target, m0, isp, mu):
     delta_v_hohmann = delta_v_init + delta_v_fin
     delta_v_total = delta_v_inc + delta_v_raan + delta_v_hohmann
 
-    print("\033[4m" + "Transfer values for " + targ_orb.name + ": \033[0m")
+    print("\033[4m" + "Transfer values from " + cur_orb.name + " to " + targ_orb.name + ": \033[0m")
     print(f"Velocity change for Inclination change (km/s):     {(delta_v_inc):.3f}")
     print(f"Velocity change for RAAN change (km/s):            {(delta_v_raan):.3f}")
     print(F"Velocity change to enter Hohmann (km/s)            {(delta_v_init):.3f}")
@@ -239,9 +239,6 @@ def delta_vs(current_orbit, target, m0, isp, mu):
 def mission_total_v(chase, targ, points_sim, m0, isp, earth_rad, omega_e, mu, print_stuff: int = 1):
     chase_orb = orb_obj(chase, mu)
 
-    if print_stuff:
-        print("\033[4m" + "Orbit transfers from " + chase_orb.name + ": \033[0m \n\n")
-
     v_transfers = delta_vs(chase, targ, m0, isp, mu)
 
     i_diff, period_mid = orb_sim.sim_delta_time(chase, targ,
@@ -252,7 +249,6 @@ def mission_total_v(chase, targ, points_sim, m0, isp, earth_rad, omega_e, mu, pr
     phase_vs = phase_sim.phase_sim(transfer_time, targ,  m0,  earth_rad, mu)
 
     v_total = v_transfers + phase_vs
-    form.change_in_mass(v_total, m0, isp)
     print(f"Total delta v required (km/s):                     {(v_total):.3f}", end = '\n\n')
 
     return v_total

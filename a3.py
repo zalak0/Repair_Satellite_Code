@@ -31,7 +31,7 @@ def main() -> None:
     inc_ang_org, raan_org = -33.42, 144                 # Inclination angle and Right Angle of Ascending Node of original orbit
     period_org = form.period(r_org, mu)                 # Period of original orbit
     h_org = np.sqrt(r_org * mu)                         # Angular momentum of original orbit
-    m0 = 270                                            # Satellite dry mass
+    m0 = 40                                             # Satellite dry mass (kg)
 
     # Extract Orbital parameters of each target satellite
     print("\033[4m" + "Hubble Space Telescope:" + "\033[0m")
@@ -73,6 +73,7 @@ def main() -> None:
     mission_delta_v = lc.sort_orb_efficiency(current_orbit, orbits,
                     omega_e, points_sim, m0, isp, earth_rad, mu)
 
+    form.change_in_mass(mission_delta_v, m0, isp)
     print(f"Total most efficient mission delta-v (km/s):     {mission_delta_v:.3f}")
 
 if __name__ == '__main__':

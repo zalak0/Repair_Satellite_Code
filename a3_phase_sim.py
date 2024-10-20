@@ -84,22 +84,20 @@ def phase_sim(time_elapsed_init : float, target : tuple, m0 : float,
     semimajor_phase = form.semimajor_reversed(T_phase, mu)
     apogee_phase = apogee_rad(semimajor_phase, targ_orb.r_a)
 
-    print(f"Target orbit period(s)            {targ_orb.T:.3f}")
-    print(f"Target orbit apogee (km)          {targ_orb.r_a:.3f}")
-    print(f"Phase orbit period (s):           {T_phase:.3f}")
-    print(f"Phase orbit perigee (km):         {targ_orb.r_p:.3f}")
-    print(f"Phase orbit apogee (km):          {apogee_phase:.3f}")
+    # print(f"Target orbit period(s)            {targ_orb.T:.3f}")
+    # print(f"Target orbit apogee (km)          {targ_orb.r_a:.3f}")
+    # print(f"Phase orbit period (s):           {T_phase:.3f}")
+    # print(f"Phase orbit perigee (km):         {targ_orb.r_p:.3f}")
+    # print(f"Phase orbit apogee (km):          {apogee_phase:.3f}")
 
-    h_circ = form.angular_momentum(targ_orb.r_p, targ_orb.r_p, mu)
     h_targ = form.angular_momentum(targ_orb.r_p, targ_orb.r_a, mu)
     h_phase = form.angular_momentum(targ_orb.r_p, apogee_phase, mu)
 
     delta_v_phase_targ = form.delta_v(h_targ, h_phase, targ_orb.r_p)
     #delta_v_phase_circ = form.delta_v(h_circ, h_phase, r_targ_perigee)
-    form.change_in_mass(delta_v_phase_targ*2, m0, 228.1)
 
-    print(f"Delta v to enter phase:                              {delta_v_phase_targ:.3f}")
-    print(f"Delta v to exit phase:                               {delta_v_phase_targ:.3f}")
+    # print(f"Delta v to enter phase:                              {delta_v_phase_targ:.3f}")
+    # print(f"Delta v to exit phase:                               {delta_v_phase_targ:.3f}")
     print(f"Total delta v to phase from raised orbit (km/s):     {(delta_v_phase_targ*2):.3f}")
 
     return delta_v_phase_targ*2
