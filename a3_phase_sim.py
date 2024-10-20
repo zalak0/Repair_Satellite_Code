@@ -23,7 +23,6 @@ def period_phase(period_target : float, t_to_perigee : float, earth_rad :float, 
 
 def apogee_rad(semimajor_axis : float, perigee : float):
     apogee = 2*semimajor_axis - perigee
-    print(apogee)
     return apogee
 
 # Define a function to calculate the orbit

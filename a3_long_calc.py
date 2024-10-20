@@ -347,11 +347,28 @@ def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
     min_index = np.argwhere(total_delta_v == min_non_nan_value)
     min_value = total_delta_v[min_index[0][0], min_index[0][1]]
 
-    print(min_index)
-
-    if min_index[0][0] == 0 and min_index[0][1]:
+    if min_index[0][1] == 0 and min_index[0][0] == 1:
         print(f"Transferring to         {orbits[min_index[0][0]][0]}")
-        print(f"Then transferring to    {orbits[min_index[0][1] - 1][0]}")
-        print(f"Then transferring to    {orbits[min_index[0][1]][0]}")
-
+        print(f"Then transferring to    Orbit 1")
+        print(f"Then transferring to    Orbit 3")
+    elif min_index[0][1] == 0 and min_index[0][0] == 2:
+        print(f"Transferring to         {orbits[min_index[0][0]][0]}")
+        print(f"Then transferring to    Orbit 1")
+        print(f"Then transferring to    Orbit 2")
+    elif min_index[0][1] == 1 and min_index[0][0] == 0:
+        print(f"Transferring to         {orbits[min_index[0][0]][0]}")
+        print(f"Then transferring to    Orbit 3")
+        print(f"Then transferring to    Orbit 2")
+    elif min_index[0][1] == 1 and min_index[0][0] == 2:
+        print(f"Transferring to         {orbits[min_index[0][0]][0]}")
+        print(f"Then transferring to    Orbit 1")
+        print(f"Then transferring to    Orbit 2")
+    elif min_index[0][1] == 2 and min_index[0][0] == 0:
+        print(f"Transferring to         {orbits[min_index[0][0]][0]}")
+        print(f"Then transferring to    Orbit 3")
+        print(f"Then transferring to    Orbit 2")
+    elif min_index[0][1] == 2 and min_index[0][0] == 1:
+        print(f"Transferring to         {orbits[min_index[0][0]][0]}")
+        print(f"Then transferring to    Orbit 3")
+        print(f"Then transferring to    Orbit 1")
     return min_value
