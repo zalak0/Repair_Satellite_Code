@@ -52,6 +52,7 @@ def deduce_tle(file_name : str):
     # Take out what is needed and display each of the properties
     print(f"Inclination angle (degrees):                             {inclination}")
     print(f"Right Ascension of Ascending Node (RAAN) (degrees):      {raan}")
+    print(f"Argument of Perigee                                      {arg_perigee}")
     print(f"Eccentricity:                                            {eccentricity:.5f}")
     print(f"Mean anomaly (degrees):                                  {mean_anomaly:.3f} ")
     print(f"Mean motion (rev/day):                                   {mean_motion:.3f} ", end="\n\n")
@@ -209,8 +210,8 @@ def fix_orbit(orbit: tuple, r_start: np.ndarray, r_finish: np.ndarray,
     return np.array(x_fix), np.array(y_fix), np.array(z_fix), i_diff
 
 
-def delta_vs(current_orbit, target, m0, isp, mu):
-    cur_orb = orb_obj(current_orbit, mu)
+def delta_vs(current, target, m0, isp, mu):
+    cur_orb = orb_obj(current, mu)
     targ_orb = orb_obj(target, mu)
 
     # All orbits are quite circular, assume that the radius of each orbit
@@ -236,6 +237,46 @@ def delta_vs(current_orbit, target, m0, isp, mu):
 
     return delta_v_total
 
+def apse_line(current : tuple, target : tuple, mu : float) -> float:
+    cur_orb = orb_obj(current, mu)
+    targ_orb = orb_obj(target, mu)
+
+    # Find true anomaly of intersection
+    delta_arg_per = abs(cur_orb.omega - targ_orb.omega)
+
+    a = cur_orb.e * targ_orb.h**2 - targ_orb.e * cur_orb.h**2 * np.cos(delta_arg_per)
+    b = -targ_orb.e * cur_orb.h**2 * np.sin(delta_arg_per)
+    c = cur_orb.h**2 - targ_orb.h**2
+
+    phi = np.arctan2(b, a)
+    ang = (c / a) * np.cos(phi)
+
+    if abs(ang) > 180:
+        ang = ang - 360
+
+    theta_1 = phi + np.arccos(np.clip(np.radians(ang), -1, 1))  # Use np.clip to avoid acos domain errors
+
+    # Radius at apse line intersection
+    r = (cur_orb.h**2 / mu) * (1 / (1 + cur_orb.e * np.cos(theta_1)))
+
+    # Velocity components and flight path of orbit 1 (current orbit)
+    v_perp1 = cur_orb.h / r
+    v_r1 = (mu / cur_orb.h) * cur_orb.e * np.sin(theta_1)
+    v_tot1 = np.sqrt(v_r1**2 + v_perp1**2)
+    flight_ang_1 = np.arctan2(v_r1, v_perp1)
+
+    # Velocity components and flight path of orbit 2 (target orbit)
+    v_perp2 = targ_orb.h / r
+    v_r2 = (mu / targ_orb.h) * targ_orb.e * np.sin(theta_1)
+    v_tot2 = np.sqrt(v_r2**2 + v_perp2**2)
+    flight_ang_2 = np.arctan2(v_r2, v_perp2)
+
+    delta_v = np.sqrt(v_tot1**2 + v_tot2**2 - 2 * v_tot1 * v_tot2 * np.cos(flight_ang_2 - flight_ang_1))
+
+    print(f"Total Delta-v for apse line rotation(km/s):        {delta_v:.3f}")
+
+    return delta_v
+
 def mission_total_v(chase, targ, points_sim, m0, isp, earth_rad, omega_e, mu, print_stuff: int = 1):
     chase_orb = orb_obj(chase, mu)
 
@@ -247,8 +288,9 @@ def mission_total_v(chase, targ, points_sim, m0, isp, earth_rad, omega_e, mu, pr
     period_current = chase_orb.T
     transfer_time = form.total_time(period_current, period_mid, i_diff, points_sim, T_return = 1)
     phase_vs = phase_sim.phase_sim(transfer_time, targ,  m0,  earth_rad, mu)
+    apse_vs = apse_line(chase, targ, mu)
 
-    v_total = v_transfers + phase_vs
+    v_total = v_transfers + phase_vs + apse_vs
     print(f"Total delta v required (km/s):                     {(v_total):.3f}", end = '\n\n')
 
     return v_total

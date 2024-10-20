@@ -74,7 +74,7 @@ def main() -> None:
                     omega_e, points_sim, m0, isp, earth_rad, mu)
 
     form.change_in_mass(mission_delta_v, m0, isp)
-    print(f"Total most efficient mission delta-v (km/s):     {mission_delta_v:.3f}")
+    print(f"Total most efficient mission delta-v (km/s):       {mission_delta_v:.3f}")
 
 if __name__ == '__main__':
     main()
