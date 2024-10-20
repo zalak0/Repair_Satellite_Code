@@ -273,7 +273,7 @@ def apse_line(current : tuple, target : tuple, mu : float) -> float:
 
     delta_v = np.sqrt(v_tot1**2 + v_tot2**2 - 2 * v_tot1 * v_tot2 * np.cos(flight_ang_2 - flight_ang_1))
 
-    print(f"Total Delta-v for apse line rotation(km/s):        {delta_v:.3f}")
+    print(f"Total delta-v for Apse Line Rotation (km/s):       {delta_v:.3f}")
 
     return delta_v
 
@@ -354,8 +354,8 @@ def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
     min_index = np.argwhere(total_delta_v == min_non_zero_value)
     min_value = total_delta_v[min_index[0][0], min_index[0][1]]
 
-    print(total_delta_v)
-    print(min_index)
+    # print(total_delta_v)
+    # print(min_index)
 
     print(f"Transferring to         {orbits[min_index[0][0]][0]}")
     print(f"Then transferring to    {orbits[min_index[0][1] - 1][0]}")
