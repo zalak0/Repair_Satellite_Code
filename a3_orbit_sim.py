@@ -170,24 +170,24 @@ def sim_delta_time(current : tuple, target : tuple, omega_e : float,
     orb_chase, vel_chase = sim_orbit(chase_orb, mean_anomaly, mu,
                                    points_sim)
 
-    arg_per_orb = orb_obj(("Arg of Perigee orbit", cur_orb.r_p, cur_orb.r_a, cur_orb.T,
-                            cur_orb.h, cur_orb.i, cur_orb.raan, targ_orb.omega), mu)
-    orb_arg_per, vel_arg_per = sim_orbit(arg_per_orb, mean_anomaly, mu,
-                                   points_sim)
-
     inc_orb = orb_obj(("Inclination orbit", cur_orb.r_p, cur_orb.r_a, cur_orb.T,
                         cur_orb.h, targ_orb.i, cur_orb.raan, targ_orb.omega), mu)
     orb_inc, vel_inc = sim_orbit(inc_orb, mean_anomaly, mu,
                                    points_sim)
 
-    raan_orb = orb_obj(("RAAN orbit", cur_orb.r_p, cur_orb.r_a, cur_orb.T,
-                        cur_orb.h, targ_orb.i, targ_orb.raan, targ_orb.omega), mu)
-    orb_raan, vel_raan = sim_orbit(raan_orb, mean_anomaly, mu,
+    arg_per_orb = orb_obj(("Arg of Perigee orbit", cur_orb.r_p, cur_orb.r_a, cur_orb.T,
+                            cur_orb.h, cur_orb.i, cur_orb.raan, targ_orb.omega), mu)
+    orb_arg_per, vel_arg_per = sim_orbit(arg_per_orb, mean_anomaly, mu,
                                    points_sim)
 
     hohmann_orb = orb_obj(("Hohmann orbit", cur_orb.r_p, targ_orb.r_a, period_mid,
                         h_mid, targ_orb.i, targ_orb.raan, targ_orb.omega), mu)
     orb_hohmann, vel_hohmann = sim_orbit(hohmann_orb, mean_anomaly, mu,
+                                   points_sim)
+
+    raan_orb = orb_obj(("RAAN orbit", cur_orb.r_p, cur_orb.r_a, cur_orb.T,
+                        cur_orb.h, targ_orb.i, targ_orb.raan, targ_orb.omega), mu)
+    orb_raan, vel_raan = sim_orbit(raan_orb, mean_anomaly, mu,
                                    points_sim)
 
     final_orb = orb_obj(("Target orbit", targ_orb.r_p, targ_orb.r_a, targ_orb.T,
@@ -217,40 +217,3 @@ def sim_delta_time(current : tuple, target : tuple, omega_e : float,
                     lc.fix_orbit(orb_hohmann, r_hohmann_start1, r_hohmann_finish1, 0)
 
     return (i_diff_inc, i_diff_raan, i_diff_hohmann), period_mid
-
-def burn_dynamics(
-    t: float,
-    state: np.ndarray,
-    mu: float,
-    I_sp: float,
-    thrust: float
-) -> np.ndarray:
-    """The dynamics of a satellite during a burn.
-
-    Args:
-        t (float): Currrent time step
-        state (np.ndarray): The current state of the satellite.
-        mu (float): The gravitational parameter of the central body.
-        I_sp (float): The specific impulse of the satellite's thruster.
-        thrust (float): A constant thrust.
-
-    Returns:
-        np.ndarray: A vector of the derivatives of the state.
-    """
-    # Mass is now part of the satellite state vector!
-    r = state[:3]                   # The current position vector (m)
-    r_mag = np.linalg.norm(r)       # The current radius of the satellite (m)
-
-    v = state[3:6]                  # The current velocity vector (m/s)
-    v_mag = np.linalg.norm(v)
-
-    m = state[6]                    # The current mass of the satellite (kg)
-
-    g0 = spconst.g                 # Gravity at sea level (m/s^2)
-
-    # TODO: Define the burn dynamics
-    r_dot = v
-    v_dot = -mu * r/(r_mag**3) + (thrust * (v/v_mag))/m           # use Equation 1 and 2
-    m_dot = -thrust/(I_sp * g0)                           # use Equation 3
-
-    return np.array([*r_dot, *v_dot, m_dot])

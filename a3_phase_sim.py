@@ -64,7 +64,7 @@ def plot_phase_orbit(fig : Figure, ax : Axes, perigee : float, apogee : float,
         plt.show()
 
 def phase_sim(time_elapsed_init : float, target : tuple, m0 : float,
-              earth_rad : float, mu : float) -> float:
+              earth_rad : float, mu : float, print_v: int = 1) -> float:
     """Simulates phasing maneuver
 
     Args:
@@ -98,6 +98,7 @@ def phase_sim(time_elapsed_init : float, target : tuple, m0 : float,
 
     # print(f"Delta v to enter phase:                              {delta_v_phase_targ:.3f}")
     # print(f"Delta v to exit phase:                               {delta_v_phase_targ:.3f}")
-    print(f"Total delta v to Phase (km/s):                     {(delta_v_phase_targ*2):.3f}")
+    if print_v:
+        print(f"Total delta v to Phase (km/s):                     {(delta_v_phase_targ*2):.3f}")
 
-    return delta_v_phase_targ*2
+    return delta_v_phase_targ*2, T_phase

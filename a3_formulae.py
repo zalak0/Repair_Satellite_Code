@@ -58,9 +58,12 @@ def delta_v(angular_momentum_1, angular_momentum_2, radius) -> float:
     delta_v = abs(v2 - v1)
     return delta_v
 
-def delta_plane(angular_momentum : float, radius : float, ang_1 : float, ang_2 :float) -> float:
+def delta_plane(angular_momentum : float, radius : float, ang_1 : float, ang_2 :float, print_stuff: int = 0) -> float:
     v = angular_momentum/radius
     delta_ang = abs(ang_1 - ang_2)
+    if print_stuff:
+        print(v)
+        print(delta_ang)
     delta_v = 2 * v * np.sin(delta_ang/2)
 
     return delta_v
@@ -69,7 +72,7 @@ def change_in_mass(delta_v, mf, specific_impulse, gravity = 9.81) -> float:
     delta_vms = delta_v * 1000
     m0 = np.e**(delta_vms/(specific_impulse*gravity)) * mf
     dm = m0 - mf
-    print(f"Fuel mass required (Isp = {specific_impulse}):              {m0:.3f}kg")
+    print(f"Fuel mass required (Isp = {specific_impulse}):              {dm:.3f}kg")
     return dm
 
 def total_time(period_chase : float, period_mid : float,
