@@ -98,7 +98,7 @@ def phase_sim(time_elapsed_init : float, target : tuple, m0 : float,
 
     # print(f"Delta v to enter phase:                              {delta_v_phase_targ:.3f}")
     # print(f"Delta v to exit phase:                               {delta_v_phase_targ:.3f}")
-    if print_v:
-        print(f"Total delta v to Phase (km/s):                     {(delta_v_phase_targ*2):.3f}")
+    # if print_v:
+    #     print(f"Total delta v to Phase (km/s):                     {(delta_v_phase_targ*2):.3f}")
 
     return delta_v_phase_targ*2, T_phase

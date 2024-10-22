@@ -276,7 +276,7 @@ def delta_vs(current, target, m0, isp, mu):
 
     return delta_v_total
 
-def mission_total_v(chase, targ, points_sim, m0, isp, earth_rad, omega_e, mu):
+def mission_total_v(chase, targ, points_sim, m0, isp, earth_rad, omega_e, mu, park: int = 0):
     chase_orb = orb_obj(chase, mu)
 
     v_transfers = delta_vs(chase, targ, m0, isp, mu)
@@ -289,7 +289,12 @@ def mission_total_v(chase, targ, points_sim, m0, isp, earth_rad, omega_e, mu):
     v_phase, t_phase = phase_sim.phase_sim(t_transfers, targ,  m0,  earth_rad, mu, print_v = 0)
 
     v_total = v_transfers + v_phase
-    t_total = t_transfers + t_phase
+    if park:
+        v_total = v_transfers + v_phase
+        t_total = t_transfers + t_phase
+    else:
+        v_total = v_transfers
+        t_total = t_transfers
     print(f"Total delta v required (km/s):                     {(v_total):.3f}", end = '\n\n')
 
     return v_total, t_total
@@ -310,7 +315,7 @@ def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
     for i in range(len(orbits)):
         # Finds delta_v to exit inital parking orbit
         delta_park, t_park = mission_total_v(park_orbit, orbits[i], points_sim, m0, isp,
-                                    earth_rad, omega_e, mu)
+                                    earth_rad, omega_e, mu, park = 1)
         park_delta_v[i] = delta_park
         park_time[i] = t_park
 
@@ -331,46 +336,25 @@ def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
     # Calculate every possible 'total delta-v' into a 2D array
     for i in range(len(orbits)):
         for j in range(len(orbits)):
+            # Phase First to Second orbit
+            time_elapse1 = park_time[i] + transfer_time[i][j]
+            v_phase1 = phase_sim.phase_sim(time_elapse1, orbits[j], m0, earth_rad, mu)
             for k in range(len(orbits)):
-                if i != j-1 and i != j:
-                    total_delta_v[i][j][k] = park_delta_v[i] + transfer_delta_v[i][j] + transfer_delta_v[j][k]
+                if i != j and j !=k and i != k:
+                    time_elapse2 = park_time[i] + transfer_time[i][j] + transfer_time[j][k]
+                    v_phase2 = phase_sim.phase_sim(time_elapse2, orbits[k], m0, earth_rad, mu)
+                    total_delta_v[i][j][k] = park_delta_v[i] + transfer_delta_v[i][j] + transfer_delta_v[j][k] \
+                                                + v_phase1[0] + v_phase2[0]
                 else:
                     # Use np.nan for easier filtering later
                     total_delta_v[i][j][k] = np.nan
 
-    # Create a mask for non-nan values
-    non_nan_mask = ~np.isnan(total_delta_v)
+    min_index = np.unravel_index(np.nanargmin(total_delta_v), total_delta_v.shape)
+    min_value = total_delta_v[min_index]
+    print(total_delta_v)
 
-    # Use the mask to filter non-nan values and find the minimum value
-    min_non_nan_value = np.nanmin(total_delta_v[non_nan_mask])
-
-    # Get the index of the minimum non-nan value
-    min_index = np.argwhere(total_delta_v == min_non_nan_value)
-    min_value = total_delta_v[min_index[0][0], min_index[0][1]]
-    print(min_index)
-
-    if min_index[0][0] == 0 and min_index[0][1] == 1:
-        print(f"Transferring to         {orbits[min_index[0][0]][0]}")
-        print(f"Then transferring to    Orbit 2")
-        print(f"Then transferring to    Orbit 3")
-    elif min_index[0][0] == 0 and min_index[0][1] == 2:
-        print(f"Transferring to         {orbits[min_index[0][0]][0]}")
-        print(f"Then transferring to    Orbit 3")
-        print(f"Then transferring to    Orbit 2")
-    elif min_index[0][0] == 1 and min_index[0][1] == 0:
-        print(f"Transferring to         {orbits[min_index[0][0]][0]}")
-        print(f"Then transferring to    Orbit 1")
-        print(f"Then transferring to    Orbit 3")
-    elif min_index[0][0] == 1 and min_index[0][1] == 2:
-        print(f"Transferring to         {orbits[min_index[0][0]][0]}")
-        print(f"Then transferring to    Orbit 3")
-        print(f"Then transferring to    Orbit 1")
-    elif min_index[0][0] == 2 and min_index[0][1] == 0:
-        print(f"Transferring to         {orbits[min_index[0][0]][0]}")
-        print(f"Then transferring to    Orbit 1")
-        print(f"Then transferring to    Orbit 2")
-    elif min_index[0][0] == 2 and min_index[0][1] == 1:
-        print(f"Transferring to         {orbits[min_index[0][0]][0]}")
-        print(f"Then transferring to    Orbit 2")
-        print(f"Then transferring to    Orbit 1")
-    return min_value[0]
+    # Dynamically print the transfer process based on the index
+    print(f"Transferring to         {orbits[min_index[0]][0]}")
+    print(f"Then transferring to    {orbits[min_index[1]][0]}")
+    print(f"Then transferring to    {orbits[min_index[2]][0]}")
+    return min_value
