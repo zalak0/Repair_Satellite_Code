@@ -62,33 +62,49 @@ def delta_plane(angular_momentum : float, radius : float, ang_1 : float, ang_2 :
     v = angular_momentum/radius
     delta_ang = abs(ang_1 - ang_2)
     if print_stuff:
-        print(v)
-        print(delta_ang)
+        print(f"Angular momentum:        {angular_momentum}")
+        print(f"Radius:                  {radius}")
+        print(f"Velocity at RAAN change: {v}")
+        print(f"Angle of change:         {np.degrees(delta_ang)}")
     delta_v = 2 * v * np.sin(delta_ang/2)
 
     return delta_v
 
-def change_in_mass(delta_v, mf, specific_impulse, gravity = 9.81) -> float:
-    delta_vms = delta_v * 1000
-    m0 = np.e**(delta_vms/(specific_impulse*gravity)) * mf
-    dm = m0 - mf
-    print(f"Fuel mass required (Isp = {specific_impulse}):              {dm:.3f}kg")
-    return dm
+def delta_comb_plane(angular_momentum : float, radius : float, inc_1 : float, inc_2 :float,
+                raan_1 : float, raan_2 : float, print_stuff: int = 0) -> float:
+    v = angular_momentum/radius
+    delta_ang = np.arccos(np.cos(abs(raan_1-raan_2)) * np.sin(inc_1) * np.sin(inc_2) + \
+                    np.cos(inc_1) * np.cos(inc_2))
+    if print_stuff:
+        print(f"Angular momentum:        {angular_momentum}")
+        print(f"Radius:                  {radius}")
+        print(f"Velocity at RAAN change: {v}")
+        print(f"Angle of change:         {np.degrees(delta_ang)}")
+    delta_v = 2 * v * np.sin(delta_ang/2)
 
-def total_time(period_chase : float, period_mid : float,
+    return delta_v
+
+def change_in_mass(delta_v, m0, specific_impulse, gravity = 9.81) -> float:
+    delta_vms = delta_v * 1000
+    dm = m0 * (1 - np.e**(-delta_vms/(specific_impulse * gravity)))
+    mf = m0 - dm
+    return dm, mf
+
+def total_time(period_mid : float, period_rise : float,
                i_diff : float, points_sim : float, T_return: int = 0 ):
-    i_diff_inc, i_diff_raan, i_diff_hohmann = i_diff
-    dt_inc_raan = period_chase/points_sim
+    (i_diff_hohmann, i_diff_rise, i_diff_shift) = i_diff
     dt_hohmann = period_mid/points_sim
-    time_inc = dt_inc_raan * i_diff_inc
-    time_raan = dt_inc_raan * i_diff_raan
+    dt_rised = period_rise/points_sim
     time_hohmann = dt_hohmann * i_diff_hohmann
-    total_time = time_inc + time_raan + time_hohmann
+    time_rise =  dt_rised * i_diff_rise
+    time_shift =  dt_rised * i_diff_shift
+    total_time = time_hohmann + time_rise + time_shift
 
     if not T_return:
-        print(f"Time taken for inclination change:                 {time_inc:.3f}s")
-        print(f"Time taken for RAAN change:                        {time_raan:.3f}s")
-        print(f"Time taken for hohmann transfer:                   {time_hohmann:.3f}s")
-        print(f"Total time (to reach target satellite orbit):      {total_time:.3f}s")
+        print(f"Time taken to rise orbit (hohmann):             {time_hohmann:.3f}s")
+        print(f"Time taken for plane combo (plane):             {time_rise:.3f}s")
+        print(f"Time taken to lower orbit(hohmann plane):       {time_shift:.3f}s")
+        print(f"Total time (to reach target satellite orbit):   {total_time:.3f}s")
+        return total_time
     else:
         return total_time

@@ -7,10 +7,43 @@ or calculating multiple values at once
 from scipy import constants as spconst
 from scipy import integrate
 import numpy as np
+import random
+import os
 from orbit_object import Orbit as orb_obj
 import a3_formulae as form
 import a3_orbit_sim as orb_sim
 import a3_phase_sim as phase_sim
+
+
+def random_tle(satellite_number):
+    # Randomly generate orbital parameters
+    inclination = random.uniform(0, 180)  # Inclination in degrees
+    ra_of_asc_node = random.uniform(0, 360)  # Right Ascension of Ascending Node in degrees
+    eccentricity = random.uniform(0, 1)  # Eccentricity (0 to 1)
+    argument_of_perigee = random.uniform(0, 360)  # Argument of Perigee in degrees
+    mean_anomaly = random.uniform(0, 360)  # Mean Anomaly in degrees
+    mean_motion = random.uniform(0, 15)  # Mean motion (revolutions per day)
+
+    # Format TLE according to the given format
+    line1 = f'1 {satellite_number:05d}U 95035B {random.uniform(24000, 25000):.8f} {random.uniform(-0.00001, 0.00001):.8f} 00000+0 00000+0 0 9993'
+    line2 = f'2 {satellite_number:05d} {inclination:8.4f} {ra_of_asc_node:8.4f} {eccentricity:07.7f} {argument_of_perigee:8.4f} {mean_anomaly:8.4f} {mean_motion:11.8f} 107176'
+
+    return line1, line2
+
+def write_random_tles_to_files(num_tles):
+    # Create a directory to store TLE files if it doesn't exist
+    os.makedirs('TLE_Files', exist_ok=True)
+
+    for i in range(num_tles):
+        satellite_number = random.randint(10000, 99999)  # Generate a random satellite number
+        line1, line2 = random_tle(satellite_number)
+
+        # Create a filename for the TLE
+        filename = f'TLE_Files/TLE_{satellite_number}.txt'
+
+        # Write the TLE to the file
+        with open(filename, 'w') as f:
+            f.write(f"{line1}\n{line2}\n")  # Write both lines to the file
 
 def deduce_tle(file_name : str):
     """Function used to deduce TLE information when provided in a text-file
@@ -95,8 +128,8 @@ def calculate_orbital_parameters(eccentricity : float, mean_motion : float, mu :
 
     return period, semimajor_axis, r_perigee, r_apogee, angular_momentum
 
-def check_intersection(orbit_1: tuple, orbit_2: tuple, i_return: int = 0,
-                       tolerance: float = 10) -> tuple[np.ndarray, np.ndarray]:
+def check_intersection(orbit_1: tuple, orbit_2: tuple, print_true: int = 0,
+                       tolerance: float = 50) -> tuple[np.ndarray, np.ndarray]:
     """
     Function to check for intersection points between two orbits.
 
@@ -129,6 +162,8 @@ def check_intersection(orbit_1: tuple, orbit_2: tuple, i_return: int = 0,
             # Calculate the magnitude of the difference
             mag_difference = np.sqrt(x_diff**2 + y_diff**2 + z_diff**2)
 
+            if mag_difference < 500 and print_true:
+                print(mag_difference)
             # If the distance is less than the tolerance, we've found an intersection
             if mag_difference < tolerance:
                 if not found_first_intersection:
@@ -138,8 +173,10 @@ def check_intersection(orbit_1: tuple, orbit_2: tuple, i_return: int = 0,
                 else:
                     r_int2[0], r_int2[1], r_int2[2] = x1[i], y1[i], z1[i]
                     i2_orb1 = i
-                    if i_return:
-                        return r_int1, r_int2, i1_orb1, i2_orb1
+                    # if i_return:
+                    #     return r_int1, r_int2, i1_orb1, i2_orb1
+                    if print_true:
+                        print("Chase and target orbits intersect!!!")
                     return r_int1, r_int2  # Return both intersections when found
 
     # If only one intersection is found, the second will remain (0, 0, 0)
@@ -148,7 +185,7 @@ def check_intersection(orbit_1: tuple, orbit_2: tuple, i_return: int = 0,
 
 
 def fix_orbit(orbit: tuple, r_start: np.ndarray, r_finish: np.ndarray,
-              check: int, tolerance: float = 10) -> tuple:
+              check: int, tolerance: float = 50) -> tuple:
     """
     Function to trim a satellite's orbit between two radius vectors r_start and r_finish.
 
@@ -209,47 +246,12 @@ def fix_orbit(orbit: tuple, r_start: np.ndarray, r_finish: np.ndarray,
     # Convert lists back to numpy arrays for consistency
     return np.array(x_fix), np.array(y_fix), np.array(z_fix), i_diff
 
-def apse_line(current : tuple, target : tuple, mu : float) -> float:
-    cur_orb = orb_obj(current, mu)
-    targ_orb = orb_obj(target, mu)
-
-    # Find true anomaly of intersection
-    delta_arg_per = abs(cur_orb.omega - targ_orb.omega)
-
-    a = cur_orb.e * targ_orb.h**2 - targ_orb.e * cur_orb.h**2 * np.cos(delta_arg_per)
-    b = -targ_orb.e * cur_orb.h**2 * np.sin(delta_arg_per)
-    c = cur_orb.h**2 - targ_orb.h**2
-
-    phi = np.arctan2(b, a)
-    ang = (c / a) * np.cos(phi)
-
-    if abs(ang) > 180:
-        ang = ang - 360
-
-    theta_1 = phi + np.arccos(np.clip(np.radians(ang), -1, 1))  # Use np.clip to avoid acos domain errors
-
-    # Radius at apse line intersection
-    r = (cur_orb.h**2 / mu) * (1 / (1 + cur_orb.e * np.cos(theta_1)))
-
-    # Velocity components and flight path of orbit 1 (current orbit)
-    v_perp1 = cur_orb.h / r
-    v_r1 = (mu / cur_orb.h) * cur_orb.e * np.sin(theta_1)
-    v_tot1 = np.sqrt(v_r1**2 + v_perp1**2)
-    flight_ang_1 = np.arctan2(v_r1, v_perp1)
-
-    # Velocity components and flight path of orbit 2 (target orbit)
-    v_perp2 = targ_orb.h / r
-    v_r2 = (mu / targ_orb.h) * targ_orb.e * np.sin(theta_1)
-    v_tot2 = np.sqrt(v_r2**2 + v_perp2**2)
-    flight_ang_2 = np.arctan2(v_r2, v_perp2)
-
-    delta_v = np.sqrt(v_tot1**2 + v_tot2**2 - 2 * v_tot1 * v_tot2 * np.cos(flight_ang_2 - flight_ang_1))
-
-    return delta_v
-
 def delta_vs(current, target, m0, isp, mu):
     cur_orb = orb_obj(current, mu)
     targ_orb = orb_obj(target, mu)
+
+    # Two for Rise orbit, One for combo, One for hohmann, One for phase
+    delta_transfers = np.zeros(5)
 
     # All orbits are quite circular, assume that the radius of each orbit
     # Is the average of its apogee and perigee (semimajor axis)
@@ -257,65 +259,84 @@ def delta_vs(current, target, m0, isp, mu):
     semimajor_axis_chase = (targ_orb.r_p + targ_orb.r_a)/2
 
     h_mid_ellipse = form.angular_momentum(cur_orb.r_p, targ_orb.r_a, mu)
+    h_rise = form.angular_momentum(targ_orb.r_a, targ_orb.r_a, mu)
 
-    delta_v_inc = form.delta_plane(cur_orb.h, semimajor_axis_chase, cur_orb.i, targ_orb.i)
-    apse_vs = apse_line(current, target, mu)
-    delta_v_init = form.delta_v(cur_orb.h, h_mid_ellipse, cur_orb.r_p)
-    delta_v_fin = form.delta_v(h_mid_ellipse, targ_orb.h, targ_orb.r_a)
-    delta_v_hohmann = delta_v_init + delta_v_fin
-    delta_v_raan = form.delta_plane(cur_orb.h, targ_orb.r_a, cur_orb.raan, targ_orb.raan, print_stuff = 1)
-    delta_v_total = delta_v_inc + delta_v_raan + delta_v_hohmann + apse_vs
+    # Manuevres in order (no simulation, just theoritical delta-v  values)
+
+    # Step 1: Raise the orbit to target orbit's apogee
+    delta_transfers[0] = form.delta_v(cur_orb.h, h_mid_ellipse, cur_orb.r_p)
+    delta_transfers[1] = form.delta_v(h_mid_ellipse, h_rise, targ_orb.r_p)
+
+    # Step 2: Conduct combined plane (and hohmann) transfer at orbit apogee
+    delta_transfers[2] = form.delta_comb_plane(h_rise, targ_orb.r_a, cur_orb.i, targ_orb.i,
+                                        cur_orb.raan, targ_orb.raan)
+    delta_transfers[3] = form.delta_v(h_rise, targ_orb.h, targ_orb.r_a)
 
     print("\033[4m" + "Transfer values from " + cur_orb.name + " to " + targ_orb.name + ": \033[0m")
-    print(f"Velocity change for Inclination change (km/s):     {(delta_v_inc):.3f}")
-    print(f"Velocity change for Apse Line Rotation (km/s):     {apse_vs:.3f}")
-    print(F"Velocity change to enter Hohmann (km/s)            {(delta_v_init):.3f}")
-    print(F"Velocity change to exit Hohmann (km/s)             {(delta_v_fin):.3f}")
-    print(f"Velocity change for Hohmann (km/s):                {(delta_v_hohmann):.3f}")
-    print(f"Velocity change for RAAN change (km/s):            {(delta_v_raan):.3f}")
+    print(F"Velocity change to enter rised orbit (km/s)        {(delta_transfers[0]):.3f}")
+    print(F"Velocity change to exit rised orbit (km/s)         {(delta_transfers[1]):.3f}")
+    print(f"Velocity change for plane combo change (km/s):     {(delta_transfers[2]):.3f}")
+    print(f"Velocity change to lower orbit (km/s):             {(delta_transfers[3]):.3f}")
 
-    return delta_v_total
+    return delta_transfers
 
-def mission_total_v(chase, targ, points_sim, m0, isp, earth_rad, omega_e, mu, park: int = 0):
-    chase_orb = orb_obj(chase, mu)
+def mission_total_v(chase, targ, points_sim, m0, isp, thrust,
+                    earth_rad, omega_e, mu, park: int = 0):
 
     v_transfers = delta_vs(chase, targ, m0, isp, mu)
 
-    i_diff, period_mid = orb_sim.sim_delta_time(chase, targ,
+    i_diff, period_mid, period_rise = orb_sim.sim_delta_time(chase, targ,
                                 omega_e, points_sim, mu)
 
-    period_current = chase_orb.T
-    t_transfers = form.total_time(period_current, period_mid, i_diff, points_sim, T_return = 1)
-    v_phase, t_phase = phase_sim.phase_sim(t_transfers, targ,  m0,  earth_rad, mu, print_v = 0)
+    t_transfers = form.total_time(period_mid, period_rise, i_diff, points_sim)
+    v_phase, t_phase = phase_sim.phase_sim(t_transfers, targ,  earth_rad, mu, print_v = 0)
 
     v_total = v_transfers + v_phase
     if park:
-        v_total = v_transfers + v_phase
+        v_transfers[4] = v_phase
+        v_total = v_transfers
         t_total = t_transfers + t_phase
     else:
         v_total = v_transfers
         t_total = t_transfers
-    print(f"Total delta v required (km/s):                     {(v_total):.3f}", end = '\n\n')
+
+    print(f"Total delta v required (km/s):                     {(np.linalg.norm(v_total)):.3f}", end = '\n\n')
 
     return v_total, t_total
 
+def fuel_per_transfer(delta_vs, m0, isp):
+    delta_fuel_rise_init, fuel_left_rise_init = form.change_in_mass(delta_vs[0], m0, isp)
+    delta_fuel_rise_fin, fuel_left_rise_fin = form.change_in_mass(delta_vs[1], fuel_left_rise_init, isp)
+    delta_fuel_combo, fuel_left_combo = form.change_in_mass(delta_vs[2], fuel_left_rise_fin, isp)
+    delta_fuel_lower, fuel_left_lower = form.change_in_mass(delta_vs[3], fuel_left_combo, isp)
+    delta_fuel_phase, fuel_left_phase = form.change_in_mass(delta_vs[4], fuel_left_lower, isp)
+
+    total_fuel = delta_fuel_rise_init + delta_fuel_rise_fin \
+                + delta_fuel_combo + + delta_fuel_lower + delta_fuel_phase
+
+    return total_fuel, fuel_left_phase
+
 def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
-                        points_sim : float, m0 : float, isp : float, earth_rad : float, mu : float):
+                        points_sim : float, m0 : float, isp : float, thrust : float,
+                        earth_rad : float, mu : float):
 
-    # Create array to store total delta v for each possible orbit transfer
-    # Extra row to take into account parking orbits
-    park_delta_v =  np.zeros(len(orbits))
-    park_time = np.zeros(len(orbits))
+    # Initialize arrays with the correct syntax
+    # 4 columns for delta-v is to store each transfer
+    park_delta_v = np.zeros((len(orbits), 5))     # 2D array for park delta-v values with 4 columns
+    park_time = np.zeros(len(orbits))             # 1D array for park time
+    park_fuel = np.zeros(len(orbits))             # 1D array for park fuel
 
-    transfer_delta_v = np.zeros((len(orbits), len(orbits)))
-    transfer_time = np.zeros((len(orbits), len(orbits)))
+    transfer_delta_v = np.zeros((len(orbits), len(orbits), 5))   # 3D array for transfer delta-v values
+    transfer_time = np.zeros((len(orbits), len(orbits)))         # 2D array for transfer times
+    transfer_fuel = np.zeros((len(orbits), len(orbits)))         # 2D array for transfer fuel
 
-    total_delta_v = np.zeros((len(orbits), len(orbits), len(orbits)))
+    total_delta_v = np.zeros((len(orbits), len(orbits), len(orbits)))   # 3D array for total delta-v
+    total_fuel = np.zeros((len(orbits), len(orbits), len(orbits)))      # 3D array for total fuel
 
     for i in range(len(orbits)):
         # Finds delta_v to exit inital parking orbit
         delta_park, t_park = mission_total_v(park_orbit, orbits[i], points_sim, m0, isp,
-                                    earth_rad, omega_e, mu, park = 1)
+                                    thrust, earth_rad, omega_e, mu, park = 1)
         park_delta_v[i] = delta_park
         park_time[i] = t_park
 
@@ -327,7 +348,7 @@ def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
                 #print(i,j)
                 # Calculate delta-v between two unique orbits
                 delta_v2, t_transfer = mission_total_v(orbits[i], orbits[j], points_sim, m0, isp,
-                                            earth_rad, omega_e, mu)
+                                            thrust, earth_rad, omega_e, mu)
                 transfer_delta_v[i][j] = delta_v2
                 transfer_time[i][j] = t_transfer
             else:
@@ -335,26 +356,48 @@ def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
 
     # Calculate every possible 'total delta-v' into a 2D array
     for i in range(len(orbits)):
+        park_fuel[i], fuel_left_park = fuel_per_transfer(park_delta_v[i], m0, isp)
         for j in range(len(orbits)):
             # Phase First to Second orbit
             time_elapse1 = park_time[i] + transfer_time[i][j]
-            v_phase1 = phase_sim.phase_sim(time_elapse1, orbits[j], m0, earth_rad, mu)
+            v_phase1, t_phase1 = phase_sim.phase_sim(time_elapse1, orbits[j], earth_rad, mu)
+            transfer_delta_v[i][j][4] = v_phase1    # Slot phase velocity into 4th slot
+
+            # Now that we have phase, we must calculate the fuel required for our mission
+            transfer_fuel[i][j], fuel_left_1 = \
+                                fuel_per_transfer(transfer_delta_v[i][j], fuel_left_park, isp)
+
             for k in range(len(orbits)):
                 if i != j and j !=k and i != k:
                     time_elapse2 = park_time[i] + transfer_time[i][j] + transfer_time[j][k]
-                    v_phase2 = phase_sim.phase_sim(time_elapse2, orbits[k], m0, earth_rad, mu)
-                    total_delta_v[i][j][k] = park_delta_v[i] + transfer_delta_v[i][j] + transfer_delta_v[j][k] \
-                                                + v_phase1[0] + v_phase2[0]
+                    v_phase2, t_phase2 = phase_sim.phase_sim(time_elapse2, orbits[k], earth_rad, mu)
+                    transfer_delta_v[j][k][4] = v_phase2
+
+                    transfer_fuel[j][k], fuel_left_2 = \
+                                fuel_per_transfer(transfer_delta_v[j][k], fuel_left_1, isp)
+
+                    total_delta_v[i][j][k] = np.linalg.norm(park_delta_v[i]) + np.linalg.norm(transfer_delta_v[i][j]) + v_phase1 \
+                                            + np.linalg.norm(transfer_delta_v[j][k]) + v_phase2
+                    total_fuel[i][j][k] = park_fuel[i] + transfer_fuel[i][j] + transfer_fuel[j][k]
                 else:
                     # Use np.nan for easier filtering later
                     total_delta_v[i][j][k] = np.nan
 
     min_index = np.unravel_index(np.nanargmin(total_delta_v), total_delta_v.shape)
     min_value = total_delta_v[min_index]
-    print(total_delta_v)
+    min_fuel = total_fuel[min_index]
 
-    # Dynamically print the transfer process based on the index
-    print(f"Transferring to         {orbits[min_index[0]][0]}")
-    print(f"Then transferring to    {orbits[min_index[1]][0]}")
-    print(f"Then transferring to    {orbits[min_index[2]][0]}")
-    return min_value
+    print(f"Transferring to                                     {orbits[min_index[0]][0]}")
+    print(f"Then transferring to                                {orbits[min_index[1]][0]}")
+    print(f"Then transferring to                                {orbits[min_index[2]][0]}")
+
+    print(f"Phasing for first transfer (km/s):                  {park_delta_v[min_index[0]][4]:.3f}")
+    print(f"Phasing for second transfer (km/s):                 {transfer_delta_v[min_index[:2]][4]:.3f}")
+    print(f"Phasing for third transfer (km/s):                  {transfer_delta_v[min_index[1:]][4]:.3f}")
+
+    print(f"Fuel for first transfer (kg):                       {park_fuel[min_index[0]]:.3f}")
+    print(f"Fuel for second transfer (kg):                      {transfer_fuel[min_index[:2]]:.3f}")
+    print(f"Fuel for third transfer (kg):                       {transfer_fuel[min_index[1:]]:.3f}")
+
+    print(f"Least fuel required (Isp = {isp}) (kg):             {min_fuel:.3f}")
+    print(f"Total most efficient mission delta-v (km/s):        {min_value:.3f}")

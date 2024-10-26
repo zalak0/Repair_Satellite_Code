@@ -14,7 +14,7 @@ def period_phase(period_target : float, t_to_perigee : float, earth_rad :float, 
     # Threshold for period, 100km above earth's surface
     # since anything below this radius cannot be a
     # functioning orbit
-    period_earth = form.period(earth_rad + 100, mu)
+    period_earth = form.period(earth_rad + 200, mu)
     period_phase = t_to_perigee
     if period_phase >= period_earth:
         return period_phase
@@ -49,7 +49,8 @@ def plot_phase_orbit(fig : Figure, ax : Axes, perigee : float, apogee : float,
 
     if show:
         # Create a filled circle
-        circle = plt.Circle((0, 0), earth_rad, color='blue', alpha=0.4, label = "Earth")  # (x, y) position, radius, color, and transparency
+        # (x, y) position, radius, color, and transparency
+        circle = plt.Circle((0, 0), earth_rad, color='blue', alpha=0.4, label = "Earth")
 
         # Add the circle to the axes
         ax.add_artist(circle)
@@ -63,7 +64,7 @@ def plot_phase_orbit(fig : Figure, ax : Axes, perigee : float, apogee : float,
         # Show the plot
         plt.show()
 
-def phase_sim(time_elapsed_init : float, target : tuple, m0 : float,
+def phase_sim(time_elapsed_init : float, target : tuple,
               earth_rad : float, mu : float, print_v: int = 1) -> float:
     """Simulates phasing maneuver
 
@@ -72,7 +73,6 @@ def phase_sim(time_elapsed_init : float, target : tuple, m0 : float,
         target (tuple): tuple that packs important parameters for target satellite
         r_targ_perigee (float): radisu of target satellite perigee
         r_targ_apogee (float): radius of target satellite apogee
-        m0 (float): mass of satellite (wet)
         earth_rad (float): radius of Earth
         mu (float): Gravitational constant
     """
@@ -84,11 +84,18 @@ def phase_sim(time_elapsed_init : float, target : tuple, m0 : float,
     semimajor_phase = form.semimajor_reversed(T_phase, mu)
     apogee_phase = apogee_rad(semimajor_phase, targ_orb.r_p)
 
+    if apogee_phase < 0:
+        T_phase = T_phase + targ_orb.T
+        semimajor_phase = form.semimajor_reversed(T_phase, mu)
+        apogee_phase = apogee_rad(semimajor_phase, targ_orb.r_p)
+
+
+    # print(f"Name of orbit to phase:           {targ_orb.name}")
     # print(f"Target orbit period(s)            {targ_orb.T:.3f}")
     # print(f"Target orbit apogee (km)          {targ_orb.r_a:.3f}")
     # print(f"Phase orbit period (s):           {T_phase:.3f}")
     # print(f"Phase orbit perigee (km):         {targ_orb.r_p:.3f}")
-    # print(f"Phase orbit apogee (km):          {apogee_phase:.3f}")
+    # print(f"Phase orbit apogee (km):          {apogee_phase:.3f}", end = '\n\n')
 
     h_targ = form.angular_momentum(targ_orb.r_p, targ_orb.r_a, mu)
     h_phase = form.angular_momentum(targ_orb.r_p, apogee_phase, mu)

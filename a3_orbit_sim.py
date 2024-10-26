@@ -4,11 +4,11 @@ a2_simulation.py
 File repsonsible for simulating and extracting array values, mainly used
 for plotting purposes.
 """
-import numpy as np
 from scipy.integrate import solve_ivp
 from orbit_object import Orbit as orb_obj
 from scipy import constants as spconst
 import numpy as np
+import matplotlib.pyplot as plt
 import a3_long_calc as lc
 import a3_formulae as form
 
@@ -132,9 +132,8 @@ def sim_orbit_values(cur_orb, t_eval : tuple[float], mean_anomaly_sol : tuple[fl
 
         # Find radius of satellite in perifocal frame then switch to ECI frame
         r_pff, v_pff = cur_orb.elements_to_perifocal(theta, mu)
-        q = cur_orb.transform_perifocal_eci()
-        r_eci = q @ r_pff
-        v_eci[i, :] = q @ v_pff
+        r_eci = cur_orb.Q @ r_pff
+        v_eci[i, :] = cur_orb.Q @ v_pff
 
         array_2d = np.array(r_eci)
 
@@ -153,10 +152,13 @@ def sim_delta_time(current : tuple, target : tuple, omega_e : float,
     cur_orb = orb_obj(current, mu)
     targ_orb = orb_obj(target, mu)
 
-    eccentricity_mid = form.eccentricity(cur_orb.r_p, targ_orb.r_a)
     semimajor_mid = (cur_orb.r_p + targ_orb.r_a)/2
     period_mid = form.period(semimajor_mid, mu)
     h_mid = form.angular_momentum(cur_orb.r_p, targ_orb.r_a, mu)
+
+    semimajor_rise = (targ_orb.r_a + targ_orb.r_a)/2
+    period_rise = form.period(semimajor_rise, mu)
+    h_rise = form.angular_momentum(targ_orb.r_a, targ_orb.r_a, mu)
 
     # Assume orbit starts at perigee, we will fix this later
     mean_anomaly = 0
@@ -166,32 +168,32 @@ def sim_delta_time(current : tuple, target : tuple, omega_e : float,
     # Note that variables starting with ground are not used
 
     chase_orb = orb_obj(("Chase orbit", cur_orb.r_p, cur_orb.r_a, cur_orb.T,
-                        cur_orb.h, cur_orb.i, cur_orb.raan, cur_orb.omega), mu)
+                        cur_orb.h, np.degrees(cur_orb.i), np.degrees(cur_orb.raan),
+                        np.degrees(cur_orb.omega)), mu)
     orb_chase, vel_chase = sim_orbit(chase_orb, mean_anomaly, mu,
                                    points_sim)
 
-    inc_orb = orb_obj(("Inclination orbit", cur_orb.r_p, cur_orb.r_a, cur_orb.T,
-                        cur_orb.h, targ_orb.i, cur_orb.raan, targ_orb.omega), mu)
-    orb_inc, vel_inc = sim_orbit(inc_orb, mean_anomaly, mu,
-                                   points_sim)
-
-    arg_per_orb = orb_obj(("Arg of Perigee orbit", cur_orb.r_p, cur_orb.r_a, cur_orb.T,
-                            cur_orb.h, cur_orb.i, cur_orb.raan, targ_orb.omega), mu)
-    orb_arg_per, vel_arg_per = sim_orbit(arg_per_orb, mean_anomaly, mu,
-                                   points_sim)
-
     hohmann_orb = orb_obj(("Hohmann orbit", cur_orb.r_p, targ_orb.r_a, period_mid,
-                        h_mid, targ_orb.i, targ_orb.raan, targ_orb.omega), mu)
+                        h_mid, np.degrees(cur_orb.i), np.degrees(cur_orb.raan),
+                        np.degrees(cur_orb.omega)), mu)
     orb_hohmann, vel_hohmann = sim_orbit(hohmann_orb, mean_anomaly, mu,
                                    points_sim)
 
-    raan_orb = orb_obj(("RAAN orbit", cur_orb.r_p, cur_orb.r_a, cur_orb.T,
-                        cur_orb.h, targ_orb.i, targ_orb.raan, targ_orb.omega), mu)
-    orb_raan, vel_raan = sim_orbit(raan_orb, mean_anomaly, mu,
+    rise_orb = orb_obj(("Rised orbit", targ_orb.r_a, targ_orb.r_a, period_rise,
+                        h_rise, np.degrees(cur_orb.i), np.degrees(cur_orb.raan),
+                        np.degrees(cur_orb.omega)), mu)
+    orb_rise, vel_rise = sim_orbit(rise_orb, mean_anomaly, mu,
+                                   points_sim)
+
+    shift_orb = orb_obj(("Shifted orbit", targ_orb.r_a, targ_orb.r_a, period_rise,
+                        h_rise, np.degrees(targ_orb.i), np.degrees(targ_orb.raan),
+                        np.degrees(cur_orb.omega)), mu)
+    orb_shift, vel_shift = sim_orbit(shift_orb, mean_anomaly, mu,
                                    points_sim)
 
     final_orb = orb_obj(("Target orbit", targ_orb.r_p, targ_orb.r_a, targ_orb.T,
-                        targ_orb.h, targ_orb.i, targ_orb.raan, targ_orb.omega), mu)
+                        targ_orb.h, np.degrees(targ_orb.i), np.degrees(targ_orb.raan),
+                        np.degrees(targ_orb.omega)), mu)
     orb_targ, vel_targ = sim_orbit(final_orb, mean_anomaly, mu,
                                    points_sim)
 
@@ -201,19 +203,64 @@ def sim_delta_time(current : tuple, target : tuple, omega_e : float,
     # Which are the points where the delta v occurs
 
     print("Calculating orbit intersections...")
-    r_inc_start1, r_inc_start2 = lc.check_intersection(orb_chase, orb_arg_per)
-    r_inc_start1, r_inc_start2 = lc.check_intersection(orb_arg_per, orb_inc)
-    r_raan_start1, r_raan_start2 = lc.check_intersection(orb_inc, orb_raan)
-    r_hohmann_start1, r_hohmann_start2 = lc.check_intersection(orb_raan, orb_hohmann)
-    r_hohmann_finish1, r_hohmann_finish2 = lc.check_intersection(orb_hohmann, orb_targ)
+    r_rise_start1, r_rise_start2 = lc.check_intersection(orb_chase, orb_hohmann)
+    r_rise_fin1, r_rise_fin2 = lc.check_intersection(orb_hohmann, orb_rise)
+    r_shift_start1, r_shift_start2 = lc.check_intersection(orb_rise, orb_shift)
+    r_fin_start1, r_fin_start2 = lc.check_intersection(orb_shift, orb_targ)
 
     print("Fixing up orbits...")
     # Now we know orbit intersections, lets fix our orbits up
-    x_inc_fix, y_inc_fix, z_inc_fix, i_diff_inc = \
-                    lc.fix_orbit(orb_inc, r_inc_start1, r_raan_start2, 0)
-    x_raan_fix, y_raan_fix, z_raan_fix, i_diff_raan = \
-                    lc.fix_orbit(orb_raan, r_raan_start2, r_hohmann_start1, 0)
     x_hohmann_fix, y_hohmann_fix, z_hohmann_fix, i_diff_hohmann = \
-                    lc.fix_orbit(orb_hohmann, r_hohmann_start1, r_hohmann_finish1, 0)
+                    lc.fix_orbit(orb_hohmann, r_rise_start1, r_rise_fin1, 0)
+    x_rise_fix, y_rise_fix, z_rise_fix, i_diff_rise = \
+                    lc.fix_orbit(orb_rise, r_rise_fin1, r_shift_start1, 0)
+    x_shift_fix, y_shift_fix, z_shift_fix, i_diff_shift = \
+                    lc.fix_orbit(orb_shift, r_shift_start1, r_fin_start1, 0)
 
-    return (i_diff_inc, i_diff_raan, i_diff_hohmann), period_mid
+    # # Initialise plot and plot each graph
+    # fig = plt.figure()
+    # ax = plt.axes(projection='3d')
+
+    # # Plot the chase orbit
+    # x_chase, y_chase, z_chase = orb_chase
+    # ax.plot(x_chase, y_chase, z_chase, label='Chase Orbit', color='r')
+
+    # # Plot the target orbit
+    # x_targ, y_targ, z_targ = orb_targ
+    # ax.plot(x_targ, y_targ, z_targ, label='Target Orbit', color='orange')
+
+    # x_shift, y_shift, z_shift = orb_shift
+    # x_rise, y_rise, z_rise = orb_rise
+    # # Plotting rise orbit fix (x, y, z)
+    # ax.plot(x_hohmann_fix, y_hohmann_fix, z_hohmann_fix, label='Hohmann Orbit', color='b')
+    # ax.plot(x_rise_fix, y_rise_fix, z_rise_fix, label='Rise Orbit', color='g')
+    # ax.plot(x_shift_fix, y_shift_fix, z_shift_fix, label='Shift Orbit',)
+
+    # # Plot Earth
+    # # Create a grid of points in spherical coordinates
+    # u = np.linspace(0, 2 * np.pi, 100)
+    # v = np.linspace(0, np.pi, 100)
+
+    # # Convert spherical coordinates to Cartesian coordinates
+    # x = 6371 * np.outer(np.cos(u), np.sin(v))
+    # y = 6371 * np.outer(np.sin(u), np.sin(v))
+    # z = 6371 * np.outer(np.ones(np.size(u)), np.cos(v))
+
+    # # Plot the surface of the sphere (the Earth)
+    # ax.plot_surface(x, y, z, color='b', rstride=4, cstride=4, alpha=0.4)
+
+    # # Adding labels
+    # ax.set_xlabel('X Coordinate (km)')
+    # ax.set_ylabel('Y Coordinate (km)')
+    # ax.set_zlabel('Z Coordinate (km)')
+    # ax.set_title('3D Orbit Visualization')
+
+    # # Add a legend
+    # ax.legend()
+
+    # # Set aspect ratio to equal for better visualization
+    # ax.set_box_aspect([1,1,1])  # Aspect ratio is 1:1:1
+
+    # # Show the plot
+    # plt.show()
+    return (i_diff_hohmann, i_diff_rise, i_diff_shift), period_mid, period_rise

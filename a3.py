@@ -20,10 +20,10 @@ def main() -> None:
     # Amount of points being plotted in a given time frame
     # Here in this case, one period of a certain orbit
     # Need to simulate orbits to figure out exact location of satellite for phasing
-    points_sim = 1000
+    points_sim = 2000
 
-    isp = 1700
-    thrust = 22
+    isp = 228.1
+    thrust = 39 * 10**(-3)
 
     # The following is information for Questions 2, 3 and 4
     # Original satellite: Orbital parameters
@@ -31,7 +31,7 @@ def main() -> None:
     inc_ang_org, raan_org = 33.42, 144                     # Inclination angle and Right Angle of Ascending Node of original orbit
     period_org = form.period(r_org, mu)                 # Period of original orbit
     h_org = np.sqrt(r_org * mu)                         # Angular momentum of original orbit
-    mf = 40                                             # Satellite dry mass (kg)
+    m0 = 1000                                             # Satellite wet mass (kg)
 
     # Extract Orbital parameters of each target satellite
     print("\033[4m" + "Orbit 1:" + "\033[0m")
@@ -42,13 +42,13 @@ def main() -> None:
 
     print("\033[4m" + "Orbit 2:" + "\033[0m")
     inc_ang_2, raan_2, eccentricity_2, arg_perigee_2, \
-        mean_anomaly_2, mean_motion_2 = lc.deduce_tle("Orbit_TLEs/SORCE.txt")
+        mean_anomaly_2, mean_motion_2 = lc.deduce_tle("Orbit_TLEs/DSX.txt")
     period_2, semimajor_axis_2, r_perigee_2, r_apogee_2, h_2 = \
         lc.calculate_orbital_parameters(eccentricity_2, mean_motion_2, mu, earth_rad)
 
     print("\033[4m" + "Orbit 3:" + "\033[0m")
     inc_ang_3, raan_3, eccentricity_3, arg_perigee_3, \
-        mean_anomaly_3, mean_motion_3 = lc.deduce_tle("Orbit_TLEs/ISS.txt")
+        mean_anomaly_3, mean_motion_3 = lc.deduce_tle("Orbit_TLEs/TDRS3.txt")
     period_3, semimajor_axis_3, r_perigee_3, r_apogee_3, h_3 = \
         lc.calculate_orbital_parameters(eccentricity_3, mean_motion_3, mu, earth_rad)
 
@@ -66,11 +66,8 @@ def main() -> None:
     orbits = [orbit_1, orbit_2, orbit_3]
 
     # Set the current orbit to be the selected parking orbit
-    mission_delta_v = lc.sort_orb_efficiency(orbit_org, orbits,
-                    omega_e, points_sim, mf, isp, earth_rad, mu)
-
-    form.change_in_mass(mission_delta_v, mf, isp)
-    print(f"Total most efficient mission delta-v (km/s):       {mission_delta_v:.3f}")
+    lc.sort_orb_efficiency(orbit_org, orbits, omega_e, points_sim,
+                           m0, isp, thrust, earth_rad, mu)
 
 if __name__ == '__main__':
     main()
