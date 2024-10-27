@@ -19,10 +19,10 @@ def random_tle(satellite_number):
     # Randomly generate orbital parameters
     inclination = random.uniform(0, 180)  # Inclination in degrees
     ra_of_asc_node = random.uniform(0, 360)  # Right Ascension of Ascending Node in degrees
-    eccentricity = random.uniform(0, 1)  # Eccentricity (0 to 1)
+    eccentricity = random.uniform(0, 0.5)  # Eccentricity (0 to 1)
     argument_of_perigee = random.uniform(0, 360)  # Argument of Perigee in degrees
     mean_anomaly = random.uniform(0, 360)  # Mean Anomaly in degrees
-    mean_motion = random.uniform(0, 15)  # Mean motion (revolutions per day)
+    mean_motion = random.uniform(0, 10)  # Mean motion (revolutions per day)
 
     # Format TLE according to the given format
     line1 = f'1 {satellite_number:05d}U 95035B {random.uniform(24000, 25000):.8f} {random.uniform(-0.00001, 0.00001):.8f} 00000+0 00000+0 0 9993'
@@ -39,7 +39,7 @@ def write_random_tles_to_files(num_tles):
         line1, line2 = random_tle(satellite_number)
 
         # Create a filename for the TLE
-        filename = f'TLE_Files/TLE_{satellite_number}.txt'
+        filename = f'TLE_Files/TLE_{i}.txt'
 
         # Write the TLE to the file
         with open(filename, 'w') as f:
@@ -72,7 +72,7 @@ def deduce_tle(file_name : str):
         # Right Ascension of Ascending Node (RAAN) [degrees]
         raan = float(line2_split[3])
         # Eccentricity (Assumed leading decimal)
-        eccentricity = float('0.' + line2_split[4])
+        eccentricity = float(line2_split[4])
         # Argument of Perigee [degrees]
         arg_perigee = float(line2_split[5])
         # Mean Anomaly [degrees]
