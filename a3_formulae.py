@@ -70,19 +70,25 @@ def delta_plane(angular_momentum : float, radius : float, ang_1 : float, ang_2 :
 
     return delta_v
 
-def delta_comb_plane(angular_momentum : float, radius : float, inc_1 : float, inc_2 :float,
-                raan_1 : float, raan_2 : float, print_stuff: int = 0) -> float:
-    v = angular_momentum/radius
-    delta_ang = np.arccos(np.cos(abs(raan_1-raan_2)) * np.sin(inc_1) * np.sin(inc_2) + \
-                    np.cos(inc_1) * np.cos(inc_2))
-    if print_stuff:
-        print(f"Angular momentum:        {angular_momentum}")
-        print(f"Radius:                  {radius}")
-        print(f"Velocity at RAAN change: {v}")
-        print(f"Angle of change:         {np.degrees(delta_ang)}")
-    delta_v = 2 * v * np.sin(delta_ang/2)
+def delta_comb_plane(angular_momentum: float, radius: float, inc_1: float, inc_2: float,
+                     raan_1: float, raan_2: float, print_stuff: int = 0) -> float:
+    v = angular_momentum / radius
 
+    # Use the adjusted RAAN difference to compute delta_ang
+    delta_ang = np.arccos(np.cos(raan_2 - raan_1) * np.sin(inc_1) * np.sin(inc_2) \
+                          + np.cos(inc_1) * np.cos(inc_2))
+
+    if print_stuff:
+        print(f"Velocity at RAAN change: {v}")
+        print(f"RAAN1:                   {raan_1}")
+        print(f"RAAN2:                   {raan_2}")
+        print(f"inc1:                    {inc_1}")
+        print(f"inc2:                    {inc_2}")
+        print(f"Angle of change:         {np.degrees(delta_ang)}")
+
+    delta_v = 2 * v * np.sin(delta_ang / 2)
     return delta_v
+
 
 def change_in_mass(delta_v, m0, specific_impulse, gravity = 9.81) -> float:
     delta_vms = delta_v * 1000
@@ -101,10 +107,10 @@ def total_time(period_mid : float, period_rise : float,
     total_time = time_hohmann + time_rise + time_shift
 
     if not T_return:
-        print(f"Time taken to rise orbit (hohmann):             {time_hohmann:.3f}s")
-        print(f"Time taken for plane combo (plane):             {time_rise:.3f}s")
-        print(f"Time taken to lower orbit(hohmann plane):       {time_shift:.3f}s")
-        print(f"Total time (to reach target satellite orbit):   {total_time:.3f}s")
+        print(f"How long satellite stays in hohmann to rise:        {time_hohmann:.3f}s")
+        print(f"How long satellite stays in rise orbit:             {time_rise:.3f}s")
+        print(f"How long satellite stays in shifted orbit:          {time_shift:.3f}s")
+        print(f"Total time (to reach target satellite orbit):       {total_time:.3f}s")
         return total_time
     else:
         return total_time

@@ -19,10 +19,10 @@ def random_tle(satellite_number):
     # Randomly generate orbital parameters
     inclination = random.uniform(0, 180)  # Inclination in degrees
     ra_of_asc_node = random.uniform(0, 360)  # Right Ascension of Ascending Node in degrees
-    eccentricity = random.uniform(0, 0.5)  # Eccentricity (0 to 1)
+    eccentricity = random.uniform(0, 0.1)  # Eccentricity (0 to 1)
     argument_of_perigee = random.uniform(0, 360)  # Argument of Perigee in degrees
     mean_anomaly = random.uniform(0, 360)  # Mean Anomaly in degrees
-    mean_motion = random.uniform(0, 10)  # Mean motion (revolutions per day)
+    mean_motion = random.uniform(13, 16)  # Mean motion (revolutions per day)
 
     # Format TLE according to the given format
     line1 = f'1 {satellite_number:05d}U 95035B {random.uniform(24000, 25000):.8f} {random.uniform(-0.00001, 0.00001):.8f} 00000+0 00000+0 0 9993'
@@ -71,8 +71,13 @@ def deduce_tle(file_name : str):
         inclination = float(line2_split[2])
         # Right Ascension of Ascending Node (RAAN) [degrees]
         raan = float(line2_split[3])
-        # Eccentricity (Assumed leading decimal)
-        eccentricity = float(line2_split[4])
+
+        if file_name[0] == "O" or file_name[0] == "W":
+            # Eccentricity (Assumed leading decimal)
+            eccentricity = float("0." + line2_split[4])
+        else:
+            # Eccentricity (Assumed leading decimal)
+            eccentricity = float(line2_split[4])
         # Argument of Perigee [degrees]
         arg_perigee = float(line2_split[5])
         # Mean Anomaly [degrees]
@@ -256,7 +261,6 @@ def delta_vs(current, target, m0, isp, mu):
     # All orbits are quite circular, assume that the radius of each orbit
     # Is the average of its apogee and perigee (semimajor axis)
     # This will give us an approximate 1km error
-    semimajor_axis_chase = (targ_orb.r_p + targ_orb.r_a)/2
 
     h_mid_ellipse = form.angular_momentum(cur_orb.r_p, targ_orb.r_a, mu)
     h_rise = form.angular_momentum(targ_orb.r_a, targ_orb.r_a, mu)
@@ -269,7 +273,7 @@ def delta_vs(current, target, m0, isp, mu):
 
     # Step 2: Conduct combined plane (and hohmann) transfer at orbit apogee
     delta_transfers[2] = form.delta_comb_plane(h_rise, targ_orb.r_a, cur_orb.i, targ_orb.i,
-                                        cur_orb.raan, targ_orb.raan)
+                                        cur_orb.raan, targ_orb.raan, print_stuff = 1)
     delta_transfers[3] = form.delta_v(h_rise, targ_orb.h, targ_orb.r_a)
 
     print("\033[4m" + "Transfer values from " + cur_orb.name + " to " + targ_orb.name + ": \033[0m")
