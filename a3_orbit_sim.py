@@ -146,7 +146,7 @@ def sim_orbit_values(cur_orb, t_eval : tuple[float], mean_anomaly_sol : tuple[fl
 
     return x_eci, y_eci, z_eci, v_eci
 
-def sim_delta_time(current : tuple, target : tuple, omega_e : float,
+def sim_delta_time(current : tuple, target : tuple,
                    points_sim : float,  mu : float) -> tuple[float]:
 
     cur_orb = orb_obj(current, mu)

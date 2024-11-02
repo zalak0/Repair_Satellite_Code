@@ -39,7 +39,7 @@ def write_random_tles_to_files(num_tles):
         line1, line2 = random_tle(satellite_number)
 
         # Create a filename for the TLE
-        filename = f'TLE_Files/TLE_{i}.txt'
+        filename = f'Random_TLEs/TLE_{i}.txt'
 
         # Write the TLE to the file
         with open(filename, 'w') as f:
@@ -284,13 +284,13 @@ def delta_vs(current, target, m0, isp, mu):
 
     return delta_transfers
 
-def mission_total_v(chase, targ, points_sim, m0, isp, thrust,
-                    earth_rad, omega_e, mu, park: int = 0):
+def mission_total_v(chase, targ, points_sim, m0, isp,
+                    earth_rad, mu, park: int = 0):
 
     v_transfers = delta_vs(chase, targ, m0, isp, mu)
 
     i_diff, period_mid, period_rise = orb_sim.sim_delta_time(chase, targ,
-                                omega_e, points_sim, mu)
+                                points_sim, mu)
 
     t_transfers = form.total_time(period_mid, period_rise, i_diff, points_sim)
     v_phase, t_phase = phase_sim.phase_sim(t_transfers, targ,  earth_rad, mu, print_v = 0)
@@ -320,8 +320,8 @@ def fuel_per_transfer(delta_vs, m0, isp):
 
     return total_fuel, fuel_left_phase
 
-def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
-                        points_sim : float, m0 : float, isp : float, thrust : float,
+def sort_orb_efficiency(park_orbit : tuple, orbits : list,
+                        points_sim : float, m0 : float, isp : float,
                         earth_rad : float, mu : float):
 
     # Initialize arrays with the correct syntax
@@ -340,7 +340,7 @@ def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
     for i in range(len(orbits)):
         # Finds delta_v to exit inital parking orbit
         delta_park, t_park = mission_total_v(park_orbit, orbits[i], points_sim, m0, isp,
-                                    thrust, earth_rad, omega_e, mu, park = 1)
+                                            earth_rad, mu, park = 1)
         park_delta_v[i] = delta_park
         park_time[i] = t_park
 
@@ -352,7 +352,7 @@ def sort_orb_efficiency(park_orbit : tuple, orbits : list, omega_e : float,
                 #print(i,j)
                 # Calculate delta-v between two unique orbits
                 delta_v2, t_transfer = mission_total_v(orbits[i], orbits[j], points_sim, m0, isp,
-                                            thrust, earth_rad, omega_e, mu)
+                                                    earth_rad, mu)
                 transfer_delta_v[i][j] = delta_v2
                 transfer_time[i][j] = t_transfer
             else:

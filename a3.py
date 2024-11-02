@@ -13,26 +13,25 @@ import a3_long_calc as lc
 def main() -> None:
     """Main file
     """
+    # Defined parameters used
     mu = 398600                         # Earth's gravitational parameter [km^3/s^2]
     earth_rad = 6371                    # Earth's mean radius [km]
-    omega_e = 7.2921159 * 10**(-5)      # Earth's rotation
 
     # Amount of points being plotted in a given time frame
     # Here in this case, one period of a certain orbit
     # Need to simulate orbits to figure out exact location of satellite for phasing
     points_sim = 1500
 
+    # Parking satellite: Orbital parameters
+    r_org = 305 + earth_rad                            # Circular orbit
+    inc_ang_org, raan_org = 33.42, 144                 # Inclination angle and Right Angle of Ascending Node of original orbit
+    period_org = form.period(r_org, mu)                # Period of original orbit
+    h_org = np.sqrt(r_org * mu)                        # Angular momentum of original orbit
+    m0 = 1000                                          # Satellite wet mass (kg)
     isp = 228.1
     thrust = 39 * 10**(-3)
 
-    # The following is information for Questions 2, 3 and 4
-    # Original satellite: Orbital parameters
-    r_org = 305 + earth_rad                            # Circular orbit
-    inc_ang_org, raan_org = 33.42, 144                     # Inclination angle and Right Angle of Ascending Node of original orbit
-    period_org = form.period(r_org, mu)                 # Period of original orbit
-    h_org = np.sqrt(r_org * mu)                         # Angular momentum of original orbit
-    m0 = 1000                                             # Satellite wet mass (kg)
-
+    # Generate 3 random TLEs
     lc.write_random_tles_to_files(3)
 
     # Extract Orbital parameters of each target satellite
@@ -68,8 +67,8 @@ def main() -> None:
     orbits = [orbit_1, orbit_2, orbit_3]
 
     # Set the current orbit to be the selected parking orbit
-    lc.sort_orb_efficiency(orbit_org, orbits, omega_e, points_sim,
-                           m0, isp, thrust, earth_rad, mu)
+    lc.sort_orb_efficiency(orbit_org, orbits, points_sim,
+                           m0, isp, earth_rad, mu)
 
 if __name__ == '__main__':
     main()

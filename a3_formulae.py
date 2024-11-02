@@ -89,7 +89,6 @@ def delta_comb_plane(angular_momentum: float, radius: float, inc_1: float, inc_2
     delta_v = 2 * v * np.sin(delta_ang / 2)
     return delta_v
 
-
 def change_in_mass(delta_v, m0, specific_impulse, gravity = 9.81) -> float:
     delta_vms = delta_v * 1000
     dm = m0 * (1 - np.e**(-delta_vms/(specific_impulse * gravity)))
